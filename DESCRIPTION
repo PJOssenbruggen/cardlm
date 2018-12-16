@@ -1,10 +1,11 @@
 Package: cardlm
 Type: Package
-Title: Tools for Understanding Highway Performance, Part 2.
+Title: Tools for Understanding Highway Performance, Part 2
 Version: 0.1.0
 Author: Authors@R: person("Paul", "Ossenbruggen", email = "pjo@unh.edu", role = c("aut", "cre"))
+Maintainer:  Paul Ossenbruggen <pjo@unh.edu>
 Description: Uses the CRAN dlm package.
-License: MIT + file LICENSE
+License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
 Imports: 
