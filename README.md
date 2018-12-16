@@ -16,3 +16,4 @@ Obtain the **tdf1df2.rda** data set from the site from:
 
 4.  Check, head(tdf1df2) to be sure that it is loaded onto to your
     computer.
+# cardlm
