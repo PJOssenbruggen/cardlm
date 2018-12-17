@@ -8,4 +8,18 @@ Description: Uses the CRAN dlm package.
 License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
+Depends: R (>= 2.10)
 RoxygenNote: 6.1.1
+Imports:
+  dlm,
+  dplyr,
+  devtools,
+  ggplot2,
+  grDevices,
+  graphics,
+  knitr,
+  stats,
+  roxygen2,
+  tidyverse,
+  usethis,
+  utils

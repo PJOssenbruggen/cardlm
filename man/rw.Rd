@@ -10,7 +10,7 @@ rw(tdf1df2)
 \item{tdf1fd2, }{\code{cartools} data set, a matrix.}
 }
 \value{
-Plot of the data.
+Plot of the data, Kalman filters, smoother and forecasts.
 }
 \description{
 \code{rw} Random walk model.
