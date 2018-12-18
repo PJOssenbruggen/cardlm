@@ -20,6 +20,7 @@ rwForecast <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency, wv) {
   u     <- as.matrix(tdf1df2[,seq(2,dim(tdf1df2)[2],3)])
   u     <- u[,veh]
   u.ts  <- ts(u, start = 0, end = tend,  frequency)
+  par(mfrow = c(1,1), pty = "s")
   plot(u.ts, xlab = "t, seconds", ylab = "u, feet per second",
        ylim = c(0,1.1*max(tdf1df2[,2])))
   rw        <- dlm::dlmModPoly(order = 1, dV, dW, C0, m0)
@@ -40,7 +41,7 @@ rwForecast <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency, wv) {
 #  str(Foremod2,1)
   a         <- cbind(u.ts,Foremod$f, Foremod2$f)
   lines(a[,3], lty = 1, col = "red", lwd = 2)
-  legend("topleft", legend = c(paste("data, V = ", dV),
+  legend("topleft", legend = c(paste("one-step ahead, V = ", dV),
                                paste("one-step ahead, W/V = ", wvratio),
                                paste("one-step ahead, W/V = ", wvratio2)),
          lty = c(1,3), col = c(gray(0.5), "blue"),

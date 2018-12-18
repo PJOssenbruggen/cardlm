@@ -29,14 +29,16 @@ rwSmooth <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency) {
   axis(side = 4, at = m0, expression(bar(u)))
   abline(h = m0, col = gray(0.8))
   Smthmod   <- dlm::dlmSmooth(u.ts, rw)
+  attach(Smthmod)
   a         <- cbind(u.ts, Smthmod$s)
   lines(a[,2], lty = 2, col = "orange", lwd = 2)
-  N <- as.numeric(dim(tdf1df2)[1])
+  N         <- as.numeric(dim(tdf1df2)[1])
   class(U.S[[N+1]])
   drop(dlm::dlmSvd2var(U.S[[N+1]], D.S[[N+1]]))
   unlist(dlm::dlmSvd2var(U.S,D.S))
   hwid     <- qnorm(0.025, lower.tail = FALSE) * sqrt(unlist(dlm::dlmSvd2var(U.S,D.S)))
-  a        <- cbind(a, as.vector(s) + hwid %o% c(-1,1))
+  detach(Smthmod)
+  a        <- cbind(a, as.vector(Smthmod$s) + hwid %o% c(-1,1))
   lines(a[,3], lty = 1, col = "orange", lwd = 1)
   lines(a[,4], lty = 1, col = "orange", lwd = 1)
   legend("topleft", legend = c(paste("data, V = ", dV),
@@ -44,5 +46,5 @@ rwSmooth <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency) {
                                "95% C.I."),
          lty = c(1,1,1), col = c(gray(0.5), "orange"),
          lwd = c(1,2,1), bty = "n")
-
+  return(u)
 }
