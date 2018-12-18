@@ -11,15 +11,25 @@
 #' @param frequency, number of time-steps per second
 #' @param wv signal noise ratio, a number
 #' @return A \code{ts} plot to study the effects of \code{dW} on the forecast.
+<<<<<<< HEAD
 #' @usage rwForecast(tdf1df2, veh, dV, dW, m0, C0, tend, freqency, wv)
 #' @examples
 #' rwForecast(tdf1df2, 1, 7.33, 7.33, 77.88, 77.88, 40, 8, 0.01)
+=======
+#' @usage rwForecast(tdf1df2, veh, dV, dW, m0, C0, tend, freqency)
+#' @examples
+#' rwForecast(tdf1df2, 1, 73.3, 73.3, 77.88, 77.88, 40, 8, 0.01)
+>>>>>>> 25b5ef39c52adce295a4985cec488b0de07fead7
 #' @export
 rwForecast <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency, wv) {
   N     <- as.numeric(dim(tdf1df2)[1])
   u     <- as.matrix(tdf1df2[,seq(2,dim(tdf1df2)[2],3)])
   u     <- u[,veh]
   u.ts  <- ts(u, start = 0, end = tend,  frequency)
+<<<<<<< HEAD
+=======
+  par(mfrow = c(1,1), pty = "s")
+>>>>>>> 25b5ef39c52adce295a4985cec488b0de07fead7
   plot(u.ts, xlab = "t, seconds", ylab = "u, feet per second",
        ylim = c(0,1.1*max(tdf1df2[,2])))
   rw        <- dlm::dlmModPoly(order = 1, dV, dW, C0, m0)
@@ -40,7 +50,11 @@ rwForecast <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency, wv) {
 #  str(Foremod2,1)
   a         <- cbind(u.ts,Foremod$f, Foremod2$f)
   lines(a[,3], lty = 1, col = "red", lwd = 2)
+<<<<<<< HEAD
   legend("topleft", legend = c(paste("data, V = ", dV),
+=======
+  legend("topleft", legend = c(paste("one-step ahead, V = ", dV),
+>>>>>>> 25b5ef39c52adce295a4985cec488b0de07fead7
                                paste("one-step ahead, W/V = ", wvratio),
                                paste("one-step ahead, W/V = ", wvratio2)),
          lty = c(1,3), col = c(gray(0.5), "blue"),
