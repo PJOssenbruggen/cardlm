@@ -1,16 +1,16 @@
-#' \code{rw} Random walk model.
+#' \code{rwFilter} Random walk model for filtering and smoothing.
 #'
 #' @param tdf1fd2, \code{cartools} data set, a matrix.
-#' @return Plot of the data, Kalman filters, smoother and forecasts.
-#' @usage rw(tdf1df2)
+#' @return Plots of the speed \code{u} data, Kalman filter and smoother.
+#' @usage rwFilter(tdf1df2)
 #' @export
-rw <- function(tdf1df2) {
+rwFilter <- function(tdf1df2) {
   plot(tdf1df2[,1], tdf1df2[,2], typ = "b", col = gray(0.5), xlab = "t, seconds", ylab = "u, feet per second",
        ylim = c(0,1.1*max(tdf1df2[,2])))
   rw  <- dlm::dlmModPoly(order = 1, dV = 73.3, dW = 7.73, C0 = 77.88, m0 = 77.88)
   snr <- 0.1
   print(unlist(rw))
-  ulead    <- tdf1df2[,2]
+  ulead     <- tdf1df2[,2]
   Filtmod   <- dlm::dlmFilter(ulead, rw)
   lines(tdf1df2[,1], dlm::dropFirst(Filtmod$m), lwd = 2, col = "blue")
   Smthmod <- dlm::dlmSmooth(ulead, rw)
