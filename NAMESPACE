@@ -1,4 +1,4 @@
-export(rw)
+
 importFrom("grDevices", "gray")
 importFrom("graphics", "lines", "plot")
 importFrom("stats", "qnorm")
