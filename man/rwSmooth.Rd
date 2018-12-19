@@ -4,7 +4,7 @@
 \alias{rwSmooth}
 \title{\code{rwSmooth} Random walk model for smoothing.}
 \usage{
-rwSmooth(tdf1df2, veh, dV, dW, m0, C0, tend, freqency)
+rwSmooth(tdf1df2, veh, dV, dW, m0, C0, tend, frequency)
 }
 \arguments{
 \item{veh, }{vehicle number.}
@@ -19,9 +19,9 @@ rwSmooth(tdf1df2, veh, dV, dW, m0, C0, tend, freqency)
 
 \item{tend, }{end time in seconds}
 
-\item{tdf1fd2, }{observations from \code{cartools}, a matrix.}
-
 \item{frequency, }{number of time-steps per second}
+
+\item{tdf1fd2, }{observations from \code{cartools}, a matrix.}
 
 \item{wv}{signal noise ratio, a number}
 }
@@ -30,7 +30,4 @@ A \code{ts} plot to study the effects of \code{dW} on the forecast.
 }
 \description{
 All observations are in units of feet and seconds.
-}
-\examples{
-rwSmooth(tdf1df2, 1, 73.3, 73.3, 77.88, 77.88, 40, 8)
 }

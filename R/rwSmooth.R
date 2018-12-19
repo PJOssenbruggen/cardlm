@@ -11,11 +11,11 @@
 #' @param frequency, number of time-steps per second
 #' @param wv signal noise ratio, a number
 #' @return A \code{ts} plot to study the effects of \code{dW} on the forecast.
-#' @usage rwSmooth(tdf1df2, veh, dV, dW, m0, C0, tend, freqency)
-#' @examples
-#' rwSmooth(tdf1df2, 1, 73.3, 73.3, 77.88, 77.88, 40, 8)
+#' @usage rwSmooth(tdf1df2, veh, dV, dW, m0, C0, tend, frequency)
+# #' @examples
+# #' rwSmooth(tdf1df2, 1, 73.3, 73.3, 77.88, 77.88, 40, 8)
 #' @export
-rwSmooth <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency) {
+rwSmooth <- function(tdf1df2, veh, dV, dW, m0, C0, tend, frequency) {
   N     <- as.numeric(dim(tdf1df2)[1])
   u     <- as.matrix(tdf1df2[,seq(2,dim(tdf1df2)[2],3)])
   u     <- u[,veh]
@@ -34,6 +34,7 @@ rwSmooth <- function(tdf1df2, veh, dV, dW, m0, C0, tend, freqency) {
   lines(a[,2], lty = 2, col = "orange", lwd = 2)
   N         <- as.numeric(dim(tdf1df2)[1])
   class(U.S[[N+1]])
+
   drop(dlm::dlmSvd2var(U.S[[N+1]], D.S[[N+1]]))
   unlist(dlm::dlmSvd2var(U.S,D.S))
   hwid     <- qnorm(0.025, lower.tail = FALSE) * sqrt(unlist(dlm::dlmSvd2var(U.S,D.S)))

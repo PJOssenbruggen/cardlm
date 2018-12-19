@@ -4,15 +4,7 @@
 \alias{rwForecast}
 \title{\code{rwForecast} Random walk model for forecasting.}
 \usage{
-<<<<<<< HEAD
-rwForecast(tdf1df2, veh, dV, dW, m0, C0, tend, freqency, wv)
-=======
-<<<<<<< HEAD
-rwForecast(tdf1df2, veh, dV, dW, m0, C0, tend, freqency, wv)
-=======
-rwForecast(tdf1df2, veh, dV, dW, m0, C0, tend, freqency)
->>>>>>> 25b5ef39c52adce295a4985cec488b0de07fead7
->>>>>>> a6a0d7e2036352e0fce56a73df46f9672ed232e3
+rwForecast(tdf1df2, veh, dV, dW, m0, C0, tend, frequency, wv)
 }
 \arguments{
 \item{veh, }{vehicle number.}
@@ -27,26 +19,15 @@ rwForecast(tdf1df2, veh, dV, dW, m0, C0, tend, freqency)
 
 \item{tend, }{end time in seconds}
 
+\item{frequency, }{number of time-steps per second}
+
 \item{wv}{signal noise ratio, a number}
 
 \item{tdf1fd2, }{observations from \code{cartools}, a matrix.}
-
-\item{frequency, }{number of time-steps per second}
 }
 \value{
 A \code{ts} plot to study the effects of \code{dW} on the forecast.
 }
 \description{
 All observations are in units of feet and seconds.
-}
-\examples{
-<<<<<<< HEAD
-rwForecast(tdf1df2, 1, 7.33, 7.33, 77.88, 77.88, 40, 8, 0.01)
-=======
-<<<<<<< HEAD
-rwForecast(tdf1df2, 1, 7.33, 7.33, 77.88, 77.88, 40, 8, 0.01)
-=======
-rwForecast(tdf1df2, 1, 73.3, 73.3, 77.88, 77.88, 40, 8, 0.01)
->>>>>>> 25b5ef39c52adce295a4985cec488b0de07fead7
->>>>>>> a6a0d7e2036352e0fce56a73df46f9672ed232e3
 }

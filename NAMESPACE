@@ -2,3 +2,5 @@
 importFrom("grDevices", "gray")
 importFrom("graphics", "lines", "plot")
 importFrom("stats", "qnorm")
+importFrom("graphics", "abline", "axis", "legend", "title")
+importFrom("stats", "StructTS", "frequency", "ts")
