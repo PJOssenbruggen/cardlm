@@ -34,7 +34,6 @@ rwSmooth <- function(tdf1df2, veh, dV, dW, m0, C0, tend, frequency) {
   lines(a[,2], lty = 2, col = "orange", lwd = 2)
   N         <- as.numeric(dim(tdf1df2)[1])
   class(U.S[[N+1]])
-
   drop(dlm::dlmSvd2var(U.S[[N+1]], D.S[[N+1]]))
   unlist(dlm::dlmSvd2var(U.S,D.S))
   hwid     <- qnorm(0.025, lower.tail = FALSE) * sqrt(unlist(dlm::dlmSvd2var(U.S,D.S)))
