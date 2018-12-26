@@ -17,6 +17,6 @@ xuMLEparam <- function(tdf1fd2, veh, tend, frequency) {
   xu      <- cbind(x,u)
   y       <- ts(xu, start = 0, end = tend,  frequency)
   fit     <- dlm::dlmMLE(y, rep(0,6), xuBuild)
-  lst <- xuBuild(fit$par)
+  lst     <- xuBuild(fit$par)
   return(lst)
 }
