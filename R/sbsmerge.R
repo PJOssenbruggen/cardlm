@@ -17,44 +17,89 @@ sbsmerge <- function() {
   leff    <- 14
   size    <- 100
   kfactor <- 4/3
-  lst     <- zipper.simulate(nveh1,nveh2,umn,usd,xstart1,delt,tstart,tend,xfunnel,leff,size,kfactor)
+  lst     <- sbs.simulate(nveh1,nveh2,umn,usd,xstart1,delt,tstart,tend,xfunnel,leff,size,kfactor)
   ### Establish data frames for vehicles 1 and 2, veh = 1 and veh = 2 where u1 and u2 are the speeds of veh 1 and 2.
   ### Dt = t2 - t1
+### Lead Vehicle 1, Following vehicle 2 ##########################################
   df      <- as.matrix(lst[[6]])
-  seq1    <- seq(1,dim(df)[1],10)
-  u1      <- as.numeric(df[seq1,5])
-  seq2    <- seq(2,dim(df)[1],10)
-  u2      <- as.numeric(df[seq2,4])
-  u1      <- ts(u1)
-  u2      <- ts(u2)
-  t1      <- as.numeric(df[seq1,2])
-  t2      <- as.numeric(df[seq1,3])
-  Dt      <- t2 - t1
-  df.reg  <- data.frame(u1 = as.numeric(u1), Dt, u2)
-  Dt.ts   <- ts(Dt)
-  plot(as.numeric(u1), Dt, xlab = expression(u[1]), ylab = expression(Delta*"t"))
-  lm.reg  <- lm(Dt ~ u1, df.reg)
-  summary(lm.reg)
-  ## NG
-  lm2.reg <- lm(u2 ~ Dt + u1, df.reg)
-  summary(lm2.reg)
-  ## Good
-  lm3.reg <- lm(u2 ~ Dt, df.reg)
-  summary(lm3.reg)
-  newdata <- data.frame(u1 = seq(40,80,0.5))
-  lm.prd  <- predict(lm.reg, se.fit = TRUE, newdata)
-  lines(newdata$u1, as.numeric(lm.prd$fit), lwd = 2)
-  lines(newdata$u1, as.numeric(lm.prd$fit)+ 1.96 * as.numeric(lm.prd$se))
-  lines(newdata$u1, as.numeric(lm.prd$fit)- 1.96 * as.numeric(lm.prd$se))
-  newdata3 <- data.frame(Dt = seq(4,10,0.125))
-  lm3.prd  <- predict(lm3.reg, se.fit = TRUE, newdata3)
-  plot(Dt, as.numeric(u2), xlab = expression(Delta*"t"), ylab = expression(u[2]))
-  lines(newdata3$Dt, as.numeric(lm3.prd$fit), lwd = 2)
-  lines(newdata3$Dt, as.numeric(lm3.prd$fit)+ 1.96 * as.numeric(lm3.prd$se))
-  lines(newdata3$Dt, as.numeric(lm3.prd$fit)- 1.96 * as.numeric(lm3.prd$se))
-  cor(Dt,u1)
-  cor(u2,Dt)
-  ### dlm #################################################################################
+  head(df)
+  for(i in 1:10) {
+    stp   <- seq(i,dim(df)[1],10)
+    te    <- as.numeric(df[stp,2])
+    ue    <- as.numeric(df[stp,5])
+    td    <- as.numeric(df[stp,3])
+    ud    <- as.numeric(df[stp,4])
+    tmp   <- data.frame(te,ue,td,ud)
+    if(i == 1) df.reg <- tmp else df.reg <- cbind(df.reg, tmp)
+  }
+  hdr <- rep(seq(1,10),4)
+  o   <- order(hdr)
+  hdr <- hdr[o]
+  names(df.reg) <- paste0(names(df.reg),hdr)
+  regress <- function(lead.veh, df.reg) {
+    cols  <- matrix(seq(1,40),10,4,byrow = TRUE)
+    par(mfrow = c(1,2), pty = "s")
+    data <- df.reg[,cols[lead.veh + 1,]]
+    data <- data.frame(dt = data[,3] - data[,1], ue = data[,2], u0 = data[,4])
+    plot(data$ue, data$dt,
+         ylab = expression(Delta*"t"), xlab = expression(u[e]),
+         ylim = c(0,1.1*max(data$dt)),
+         xlim = c(min(data$ue), max(data$ue))
+    )
+    title(main = "Predictions", sub = paste("Leading Vehicle:",lead.veh))
+    dt.u.reg  <- lm(dt ~ ue, data)
+    summary(dt.u.reg)
+    lm.prd  <- predict(dt.u.reg,  data, interval = "prediction")
+    lines(data$ue, as.numeric(lm.prd[,1]), lwd = 2, col = "red")
+    lines(data$ue, as.numeric(lm.prd[,2]), col = "red", lty = 2)
+    lines(data$ue, as.numeric(lm.prd[,3]), col = "red", lty = 2)
+    plot(data$ue, data$u0,
+         ylab = expression(u[0]), xlab = expression(u[e]),
+         ylim = c(0,1.1*max(data$u0)),
+         xlim = c(min(data$ue), max(data$ue))
+    )
+    u0.u.reg  <- lm(u0 ~ ue, data)
+    summary(u0.u.reg)
+    lm.prd  <- predict(u0.u.reg,  data, interval = "prediction")
+    lines(data$ue, as.numeric(lm.prd[,1]), lwd = 2, col = "blue")
+    lines(data$ue, as.numeric(lm.prd[,2]), col = "blue", lty = 2)
+    lines(data$ue, as.numeric(lm.prd[,3]), col = "blue", lty = 2)
+    title(main = "Predictions", sub = paste("Following Vehicle:",lead.veh + 1))
+  }
+  regress(lead.veh = 2, df.reg)
+
+  data("alcohol")
+  deaths <- window(alcohol[,2], end = 2007)
+  population <- window(alcohol[,6], end = 2007)
+  dt <- 0.125
+  Zt <- matrix(c(1,0), 1, 2)
+  Ht <- matrix(NA)
+  Tt <- matrix(c(1,0,1,1),2,2)
+  Rt <- matrix(c(1,0),2,1)
+  Qt <- matrix(NA)
+  a1 <- matrix(c(1,0),2,1)
+  P1 <- matrix(0,2,2)
+  P1inf <- diag(2)
+  par(mfrow = c(1,2), pty = "s")
+  plot(deaths/population, col = gray(0.5), typ = "b", ylim = c(0,80))
+  model_gaussian <- SSModel(deaths/population ~ -1 + SSMcustom(Z = Zt, T = Tt,
+                                                               R = Rt, Q = Qt, a1 = a1, P1 = P1, P1inf = P1inf), H = Ht)
+  fit_gaussian   <- fitSSM(model_gaussian, inits = c(0,0), method = "BFGS")
+  out_gaussian   <- KFS(fit_gaussian$model)
+  print(out_gaussian)
+  attributes(out_gaussian)
+  lines(out_gaussian$att[,1], col = "red", lwd = 2)
+  lines(out_gaussian$muhat, col = "blue", lwd = 2)
+  title(main = "Alcohol", sub = "Gaussian")
+  legend("topleft", legend = c("Observations", "One-step head pred.", "Smoothed estimates"),
+         lty = c(NA,1,1), col = c(gray(0.5),"red","blue"), lwd = c(NA,2,2), pch = c(1,NA,NA), bty = "n"
+  )
+  P <- ts(as.matrix(out_gaussian$P), frequency = 1, start = 1969, end = 2007)
+  plot(P, col = "black", typ = "l", lwd = 2)
+  title("Error Variance")
+  browser()
+
+
   browser()
   ### dlmModReg for u2 ~ dt
   if(FALSE) {
