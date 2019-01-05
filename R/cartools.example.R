@@ -92,18 +92,18 @@ cartools.example <- function(u,x) {
          lty= c(1,1), lwd = c(2,2), col = c("blue","red"),
          bty = "n")
   model_alc_gauss2  <- SSModel(alcoholPred[,1:2] ~
-                                 SSMtrend(2, Q = list(matrix(NA,2,2), matrix(0,2,2))) +
-                                 SSMcustom(Z = diag(1,2), T = diag(0,2), Q = matrix(NA,2,2),
-                                           P1 = matrix(NA,2,2)), distribution = "gaussian",
-                               u = alcoholPred[,5:6]
-  )
+                              SSMtrend(2, Q = list(matrix(NA,2,2), matrix(0,2,2))) +
+                              SSMcustom(Z = diag(1,2), T = diag(0,2), Q = matrix(NA,2,2),
+                                           P1 = matrix(NA,2,2)),
+                              distribution = "gaussian",
+                              u = alcoholPred[,5:6])
   browser()
   updatefn <- function(pars, model, ...) {
     Q <- diag(pars[1:2])
-    Q[upper.tri(Q)] <- pars[3:5]
+    Q[upper.tri(Q)] <- pars[3]
     model["Q", etas = "level"] <- crossprod(Q)
-    Q <- diag(pars[5:6])
-    Q[upper.tri(Q)] <- pars[6:8]
+    Q <- diag(pars[4:5])
+    Q[upper.tri(Q)] <- pars[6]
     model["Q", etas = "custom"] <- model["P1", states = "custom"] <- crossprod(Q)
     model
   }
@@ -111,11 +111,11 @@ cartools.example <- function(u,x) {
   fitinit  <- fitSSM(model_alc_gauss2, updatefn = updatefn,
                      inits = rep(c(diag(init), init[upper.tri(init)]),2),
                      method = "BFGS")
-  -fitinit$optim.out$val
+  print(-fitinit$optim.out$val)
   fit <- fitSSM(model_alc_gauss2, updatefn = updatefn,
                 inits = fitinit$optim.out$par,
                 method = "BFGS", nsim = 250)
-  -fitinit$optim.out$val
+  print(-fitinit$optim.out$val)
   varcor <- fit$model["Q", etas = "level"]
   varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
   print(varcor, digits = 2)
@@ -126,12 +126,11 @@ cartools.example <- function(u,x) {
   out <- KFS(fit$model, nsim = 1000)
   print(out)
   plot(coef(out, states = c("level", "custom")), main = "Smoothed states",yax.flip = TRUE)
-  browser()
   res <- rstandard(KFS(fit$model))
   acf(res, na.action = na.pass)
   pred <- predict(fit$model,
                   newdata <- SSModel(ts(matrix(NA,5,2), start = end) ~ -1 +
-                                       SSMcustom(Z = fit$model$Z, T = fit$model$T, R = fit$model$R, Q = fit$model$Q),
+                            SSMcustom(Z = fit$model$Z, T = fit$model$T, R = fit$model$R, Q = fit$model$Q),
                                      u = 1, distribution = "gaussian"),
                   interval = "confidence", nsim = 10000)
   trend <- signal(out, "trend")$signal
@@ -146,15 +145,15 @@ cartools.example <- function(u,x) {
     if(i == 1) {
       points(tseq, as.numeric(alcohol[,1]), col = "blue")
       lines(tseq1, as.numeric(trend[,1]), lwd = 2, col = "blue")
-      lines(tseq2, as.numeric(pred[[1]][,1]), col = "blue", lwd = 3, lty = 1)
-      lines(tseq2, as.numeric(pred[[1]][,2]), col = "blue", lwd = 3, lty = 2)
-      lines(tseq2, as.numeric(pred[[1]][,3]), col = "blue", lwd = 3, lty = 2)
+      lines(tseq2, as.numeric(pred[[1]][,1]), col = "black", lwd = 3, lty = 1)
+      lines(tseq2, as.numeric(pred[[1]][,2]), col = "black", lwd = 2, lty = 3)
+      lines(tseq2, as.numeric(pred[[1]][,3]), col = "black", lwd = 2, lty = 3)
     } else {
       points(tseq, as.numeric(alcohol[,2]), col = "red")
       lines(tseq1, as.numeric(trend[,2]), lwd = 2, col = "red")
-      lines(tseq2, as.numeric(pred[[2]][,1]), col = "red", lwd = 3, lty = 1)
-      lines(tseq2, as.numeric(pred[[2]][,2]), col = "red", lwd = 3, lty = 2)
-      lines(tseq2, as.numeric(pred[[2]][,3]), col = "red", lwd = 3, lty = 2)
+      lines(tseq2, as.numeric(pred[[2]][,1]), col = "black", lwd = 3, lty = 1)
+      lines(tseq2, as.numeric(pred[[2]][,2]), col = "black", lwd = 2, lty = 3)
+      lines(tseq2, as.numeric(pred[[2]][,3]), col = "black", lwd = 2, lty = 3)
     }
     legend("topleft",
            legend = c(
@@ -162,8 +161,9 @@ cartools.example <- function(u,x) {
              paste(colnames(alcohol)[2],sep="", " data"),
              "filtered", "predictions", "95% C.I."
              ),
-           pch = c(15,15,NA,NA,NA), lty = c(NA, NA, 1,1,2),
-           lwd = c(NA,NA,2,3,3),
+           pch = c(1,1,NA,NA,NA),
+           lty = c(NA,NA,1,1,3),
+           lwd = c(NA,NA,2,3,2),
            col = c("blue","red", "black", "black", "black"),
            bty = "n")
   }
@@ -234,7 +234,7 @@ cartools.example <- function(u,x) {
 
 ###########################################################################
   data("alcohol")
-  deaths <- window(alcohol[,2], end = 2007)
+  deaths     <- window(alcohol[,2], end = 2007)
   population <- window(alcohol[,6], end = 2007)
   dt <- 0.125
   Zt <- matrix(c(1,0), 1, 2)

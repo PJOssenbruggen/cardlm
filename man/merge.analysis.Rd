@@ -6,6 +6,9 @@
 \usage{
 uses \code{merge.analysis}, \code{xab} and \code{uab} from the \code{cartools} Package.
 }
+\arguments{
+\item{tdf1df2, }{time, speed and locations, a matrix}
+}
 \description{
 \code{merge.analysis} is a wrapper function for estimating a successful, safe merge.
 }
