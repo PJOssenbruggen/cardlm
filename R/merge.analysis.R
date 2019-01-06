@@ -3,7 +3,7 @@
 #' @usage uses \code{merge.analysis}, \code{xab} and \code{uab} from the \code{cartools} Package.
 #' @param tdf1df2, time, speed and locations, a matrix
 # #' @examples
-# #' merge.analysis()
+# #' merge.analysis(tdf1df2)
 #' @export
 merge.analysis <- function(tdf1df2) {
   par(mfrow = c(1,1), pty = "s")
@@ -50,8 +50,126 @@ merge.analysis <- function(tdf1df2) {
   }
   title(main = "SBS Driver Inefficiencies", sub = expression("Decision location: "*x[e]))
 
-### u.2 #####################################################################
+### u.1 #####################################################################
   browser()
+  u    <- as.ts(data.frame(u1 =  tdf1df2[,2], u2 =  tdf1df2[,5],
+                           x1 =  tdf1df2[,3], x2 =  tdf1df2[,6]))
+  dt <- 0.125
+  Zt <- matrix(1)
+  Ht <- matrix(NA)
+  Tt <- matrix(1)
+  Rt <- matrix(1)
+  Qt <- matrix(NA)
+  a1 <- matrix(1)
+  P1 <- matrix(0)
+  P1inf <- diag(1)
+  start <- 1
+  nprd  <- 25
+  end   <- 321 - nprd
+  uPred <- window(u, start, end)
+  par(mfrow = c(1,1), pty = "s")
+
+  model_u <- SSModel(u1 ~ -1 +
+             SSMcustom(Z = Zt, T = Tt, R = Rt, Q = Qt, a1 = a1, P1 = P1, P1inf = P1inf),
+              H = Ht, data = u)
+  fit_u   <- fitSSM(model_u, inits = c(0,0), method = "BFGS")
+  out_u   <- KFS(fit_u$model)
+  print(out_u)
+  print(attributes(out_u))
+  pred <- predict(fit_u$model,
+          newdata <- SSModel(ts(matrix(NA,nprd,1), start = end) ~ -1 +
+          SSMcustom(Z = fit_u$model$Z, T = fit_u$model$T, R = fit_u$model$R, Q = fit_u$model$Q),
+          distribution = "gaussian"),
+          interval = "confidence", nsim = 10000)
+  tseq  <- seq(tsp(u)[1], tsp(u)[2])
+  tseq1 <- seq(start, end)
+  tseq2 <- seq(end+1, end + nprd)
+
+  plot(tseq, as.numeric(u[,1]), typ = "n", col = gray(0.5),
+       ylab = "u, feet per second", xlab = "t, seconds",
+       lwd = 2, ylim = c(min(u[,1] - 20), max(u[,1])))
+#  points(u[,2], col = "red")
+  points(tseq, as.numeric(u[,1]), col = "blue")
+  lines(out_u$att, col = "red", lwd = 4)
+  lines(out_u$muhat, col = "yellow", lwd = 2)
+
+  lines(tseq2, as.numeric(pred[,1]), col = "black", lwd = 3, lty = 1)
+  lines(tseq2, as.numeric(pred[,2]), col = "black", lwd = 2, lty = 3)
+  lines(tseq2, as.numeric(pred[,3]), col = "black", lwd = 2, lty = 3)
+  title(main = "Lead Vehicle", sub = "Gaussian")
+  legend("bottomleft",
+         legend = c(
+           expression(u[1]),
+           "Filtered estimates", "Smoothed estimates", "95% C.I."
+         ),
+         pch = c(1,NA,NA,NA,NA,NA),
+         lty = c(NA,1,1,1,3),
+         lwd = c(NA,4,2,3,2),
+         col = c("blue","red", "yellow", "black", "black"),
+         bty = "n")
+
+  browser()
+
+###################################################################################
+  # Example of multivariate local level model with only one state
+  # Two series of average global temperature deviations for years 1880-1987
+  # See Shumway and Stoffer (2006), p. 327 for details
+
+  data("GlobalTemp")
+  model_temp <- SSModel(GlobalTemp ~ SSMtrend(1, Q = NA, type = "common"),
+                        H = matrix(NA, 2, 2))
+  # Estimating the variance parameters
+  inits <- chol(cov(GlobalTemp))[c(1, 4, 3)]
+  inits[1:2] <- log(inits[1:2])
+  fit_temp <- fitSSM(model_temp, c(0.5*log(.1), inits), method = "BFGS")
+  out_temp <- KFS(fit_temp$model)
+  ts.plot(cbind(model_temp$y, coef(out_temp)), col = c("red","blue","black"),
+          lwd = c(1,1,4))
+  legend("bottomright",
+         legend = c(colnames(GlobalTemp), "Smoothed signal"),
+         col = c("red","blue","black"), lty = 1, lwd = c(1,1,4))
+  browser()
+
+###########################################################################
+  u12<- as.ts(data.frame(u1 =  tdf1df2[,2], u2 =  tdf1df2[,5]))
+  model_u12 <- SSModel(u12 ~ SSMtrend(1, Q = NA, type = "common"),
+                        H = matrix(NA, 2, 2))
+  inits <- chol(cov(u12))[c(1, 4, 3)]
+  inits[1:2] <- log(inits[1:2])
+  fit_u12 <- fitSSM(model_u12, c(0.5*log(.1), inits), method = "BFGS")
+  out_u12 <- KFS(fit_u12$model)
+  ts.plot(cbind(model_u12$y, coef(out_u12)), col = c("red","blue","black"),
+          lwd = c(1,1,4))
+  legend("topright",
+         legend = c(colnames(GlobalTemp), "Smoothed signal"),
+         col = c("red","blue","black"), lty = 1, lwd = c(1,1,4))
+  browser()
+
+###########################################################################
+  u12<- as.ts(data.frame(u1 =  tdf1df2[,2], u2 =  tdf1df2[,5]))
+  Zt <- matrix(c(1,1),2,1)
+  Ht <- matrix(c(NA,NA), 2, 1)
+  Tt <- matrix(1)
+  Rt <- matrix(1)
+  Qt <- matrix(NA)
+  a1 <- matrix(1)
+  P1 <- matrix(0)
+  P1inf <- diag(1)
+  start <- 1
+  nprd  <- 25
+  end   <- 321 - nprd
+  uPred <- window(u12, start, end)
+  model_u12 <- SSModel(uPred~ -1 +
+                SSMcustom(Z = Zt, T = Tt, R = Rt, Q = Qt, a1 = a1, P1 = P1, P1inf = P1inf),
+                H = Ht, data = uPred)
+
+  print(model_u12)
+  inits      <- chol(cov(u12))[c(1, 4, 3)]
+  inits[1:2] <- log(inits[1:2])
+  fit_u12    <- fitSSM(model_u12, c(0.5*log(.1), inits), method = "BFGS")
+  out_temp   <- KFS(fit_temp$model)
+  browser()
+### u.1 #####################################################################
   u    <- as.ts(data.frame(u1 =  tdf1df2[,2], u2 =  tdf1df2[,5],
                            x1 =  tdf1df2[,3], x2 =  tdf1df2[,6]))
   dt <- 0.125
@@ -63,8 +181,8 @@ merge.analysis <- function(tdf1df2) {
   a1 <- matrix(c(1,0),2,1)
   P1 <- matrix(0,2,2)
   P1inf <- diag(2)
-  par(mfrow = c(1,2), pty = "s")
-  model_u <- SSModel(u2 ~ -1 +
+  par(mfrow = c(1,1), pty = "s")
+  model_u <- SSModel(u1 ~ -1 +
                 SSMcustom(Z = Zt, T = Tt, R = Rt, Q = Qt, a1 = a1, P1 = P1, P1inf = P1inf),
                 H = Ht, data = u
                 )
@@ -72,23 +190,112 @@ merge.analysis <- function(tdf1df2) {
   out_u   <- KFS(fit_u$model)
   print(out_u)
   print(attributes(out_u))
-  plot(u[,1], ylim = c(0, max(c(u[,1],u[,2]))), col = "blue", typ = "p")
-  points(u[,2], col = "red")
-#  lines(out_u$att[,1], col = "red", lwd = 2)
-  lines(out_u$muhat, col = "black", lwd = 2)
-  title(main = "Lead Vehicle", sub = "Gaussian")
-  legend("bottomleft", legend = c("Observations: 1", "Observations: 2", "Smoothed estimates"),
-         lty = c(NA,NA,1), col = c("blue", "red", "black"), lwd = c(NA,NA,2), pch = c(1,1,NA), bty = "n"
-  )
-  P <- ts(as.matrix(out_u$P), frequency = 1, start = 0, end = 320)
-  plot(P, col = "black", typ = "l", lwd = 2)
-  title("Error Variance")
+
+  plot(u[,1], ylim = c(min(c(u[,1],u[,2])) -20, max(c(u[,1],u[,2]))),
+       col = "blue", typ = "p")
+  points(u[,2], col = "orange")
+  lines(out_u$att[,1], col = "red", lwd = 4)
+  lines(out_u$muhat, col = "yellow", lwd = 2)
+  title(main = "Lead and Following Vehicles", sub = "Gaussian")
+  legend("bottomleft", legend = c("Lead", "Following", "Filtered estimates","Smoothed estimates"),
+         lty = c(NA,NA,1,1),
+         col = c("blue", "orange", "red", "yellow"),
+         lwd = c(NA,NA,4,2),
+         pch = c(1,1,NA,NA), bty = "n")
   browser()
 
-
-
 ###########################################################################
+  start <- 1
+  nprd  <- 25
+  end   <- 321 - nprd
+  uPred <- window(u, start, end)
+  par(mfrow = c(1,1), pty = "s")
+  ts.plot(uPred[,3:4], lty = c(1,1), lwd = c(2,2), col = c("blue","red"), ylab = "x, feet")
+  legend("topleft",  legend = colnames(uPred)[3:4],
+         lty= c(1,1), lwd = c(2,2), col = c("blue","red"),
+         bty = "n")
+  model_u2  <- SSModel(uPred[,3:4] ~
+                  SSMtrend(2, Q = list(matrix(NA,2,2), matrix(0,2,2))) +
+                  SSMcustom(Z = diag(1,2), T = diag(0,2), Q = matrix(NA,2,2),
+                                           P1 = matrix(NA,2,2)),
+                  distribution = "gaussian"
+                  )
+  browser()
+  updatefn <- function(pars, model, ...) {
+    Q <- diag(pars[1:2])
+    Q[upper.tri(Q)] <- pars[3]
+    model["Q", etas = "level"] <- crossprod(Q)
+    Q <- diag(pars[4:5])
+    Q[upper.tri(Q)] <- pars[6]
+    model["Q", etas = "custom"] <- model["P1", states = "custom"] <- crossprod(Q)
+    model
+  }
+  init     <- chol(cov(u[,3:4]))
+  fitinit  <- fitSSM(model_u2, updatefn = updatefn,
+                     inits = rep(c(diag(init), init[upper.tri(init)]),2),
+                     method = "BFGS")
+  print(-fitinit$optim.out$val)
+  fit <- fitSSM(model_u2, updatefn = updatefn,
+                inits = fitinit$optim.out$par,
+                method = "BFGS", nsim = 250)
+  print(-fitinit$optim.out$val)
+  varcor <- fit$model["Q", etas = "level"]
+  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
+  print(varcor, digits = 2)
+  varcor <- fit$model["Q", etas = "custom"]
+  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
+  print(varcor, digits = 2)
+  out <- KFS(fit$model, nsim = 1000)
+  print(out)
+  plot(coef(out, states = c("level", "custom")), main = "Smoothed states", yax.flip = TRUE)
+  res <- rstandard(KFS(fit$model))
+  acf(res, na.action = na.pass)
+  pred <- predict(fit$model,
+            newdata <- SSModel(ts(matrix(NA,nprd,2), start = end) ~ -1 +
+                SSMcustom(Z = fit$model$Z, T = fit$model$T, R = fit$model$R, Q = fit$model$Q),
+                distribution = "gaussian"),
+                interval = "confidence", nsim = 10000)
+  trend <- signal(out, "trend")$signal
+  par(mfrow = c(1,1), pty = "s")
 
+  browser()
+  tseq  <- seq(tsp(u)[1], tsp(u)[2])
+  tseq1 <- seq(start, end)
+  tseq2 <- seq(end+1, end + nprd)
+
+  plot(tseq, as.numeric(u[,3]), typ = "n", col = gray(0.5),
+       ylab = "x, feet", xlab = "t, seconds",
+       lwd = 2, ylim = c(-700, max(c(u[,3],u[,4]))),
+       main = "Car Following")
+  for(i in 1:2) {
+    if(i == 1) {
+      points(tseq, as.numeric(u[,3]), col = "blue")
+      lines(tseq1, as.numeric(trend[,1]), lwd = 2, col = "blue")
+      lines(tseq2, as.numeric(pred[[1]][,1]), col = "black", lwd = 3, lty = 1)
+      lines(tseq2, as.numeric(pred[[1]][,2]), col = "black", lwd = 2, lty = 3)
+      lines(tseq2, as.numeric(pred[[1]][,3]), col = "black", lwd = 2, lty = 3)
+    } else {
+      points(tseq, as.numeric(u[,4]), col = "red")
+      lines(tseq1, as.numeric(trend[,2]), lwd = 2, col = "red")
+      lines(tseq2, as.numeric(pred[[2]][,1]), col = "black", lwd = 3, lty = 1)
+      lines(tseq2, as.numeric(pred[[2]][,2]), col = "black", lwd = 2, lty = 3)
+      lines(tseq2, as.numeric(pred[[2]][,3]), col = "black", lwd = 2, lty = 3)
+    }
+    abline(v = 0, col = gray(0.5))
+    abline(h = 0, col = gray(0.5))
+    legend("topleft",
+           legend = c(
+             expression(x[1]),
+             expression(x[2]),
+             "filtered", "predictions", "95% C.I."
+           ),
+           pch = c(1,1,NA,NA,NA),
+           lty = c(NA,NA,1,1,3),
+           lwd = c(NA,NA,2,3,2),
+           col = c("blue","red", "black", "black", "black"),
+           bty = "n")
+  }
+  browser()
 
 }
 
