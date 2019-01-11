@@ -21,7 +21,8 @@ linAcc <- function() {
     Mod    <- list(FF = F., V  = V, GG = G, W  = W, m0 = m0, C0 = C0)
     return(Mod)
   }
-  fitMod <- dlmMLE(y, parm = rep(0,6), build = buildMod, debug = TRUE,
+  browser()
+  fitMod   <- dlmMLE(y, parm = rep(0,6), build = buildMod, debug = TRUE,
                    hessian = TRUE, control = list(maxit = 500))
   fitMod
   browser()

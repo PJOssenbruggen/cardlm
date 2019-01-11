@@ -83,7 +83,7 @@ sbsmerge <- function() {
   par(mfrow = c(1,2), pty = "s")
   plot(deaths/population, col = gray(0.5), typ = "b", ylim = c(0,80))
   model_gaussian <- SSModel(deaths/population ~ -1 + SSMcustom(Z = Zt, T = Tt,
-                                                               R = Rt, Q = Qt, a1 = a1, P1 = P1, P1inf = P1inf), H = Ht)
+              R = Rt, Q = Qt, a1 = a1, P1 = P1, P1inf = P1inf), H = Ht)
   fit_gaussian   <- fitSSM(model_gaussian, inits = c(0,0), method = "BFGS")
   out_gaussian   <- KFS(fit_gaussian$model)
   print(out_gaussian)
@@ -100,7 +100,6 @@ sbsmerge <- function() {
   browser()
 
 
-  browser()
   ### dlmModReg for u2 ~ dt
   if(FALSE) {
     build.reg<- function(parm) {dlm::dlmModReg(Dt.ts, dV = exp(parm[1]), dW = exp(parm[2:3]))}

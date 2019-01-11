@@ -18,10 +18,9 @@ alcohol.example <- function() {
   P1inf <- diag(2)
   model_gaussian <- SSModel(deaths/population ~ -1 + SSMcustom(Z = Zt, T=Tt,R=Rt,Q=Qt,a1=a1,P1=P1,P1inf=P1inf),
                                   H = Ht)
-  fit_guassian   <- fitSSM(model_gaussian, inits = c(0,0), method = "BFGS")
-  out_guassian   <- KFS(fit_guassian$model)
+  fit_gaussian   <- fitSSM(model_gaussian, inits = c(0,0), method = "BFGS")
+  out_gaussian   <- KFS(fit_gaussian$model)
   plot(deaths/population, col = gray(0.5))
-  lines(out_guassian$a[,1], col = "red", lwd = 2)
-  lines(out_guassian$muhat, col = "blue", lwd = 2)
-  browser()
+  lines(out_gaussian$a[,1], col = "red", lwd = 2)
+  lines(out_gaussian$muhat, col = "blue", lwd = 2)
 }

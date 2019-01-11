@@ -318,7 +318,6 @@ cartools.example <- function(u,x) {
   varcor <- fit$model["Q", etas = "custom"]
   varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
   print(varcor, digits = 2)
-
   out <- KFS(fit$model, nsim = 1000)
   print(out)
   browser()
