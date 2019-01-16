@@ -7,7 +7,7 @@
 uses \code{Helske4.model}, \code{xab} and \code{uab} from the \code{cartools} Package.
 }
 \arguments{
-\item{tdf1df2, }{time, speed and locations, a matrix}
+\item{usd}{standard deviation of speed in mph, a number.}
 
 \item{veh, }{a number}
 }

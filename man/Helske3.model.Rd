@@ -2,10 +2,13 @@
 % Please edit documentation in R/Helske3.model.R
 \name{Helske3.model}
 \alias{Helske3.model}
-\title{\code{Helske3.model} is a wrapper function for estimating a successful, safe merge.}
+\title{\code{Helske3.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.}
 \usage{
-uses \code{Helske3.model}, \code{xab} and \code{uab} from the \code{cartools} Package.
+uses \code{Helske3.model} is used to filter noisy speed data.
+}
+\arguments{
+\item{usd}{standard deviation of speed in mph, a number.}
 }
 \description{
-\code{Helske3.model} is a wrapper function for estimating a successful, safe merge.
+\code{Helske3.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.
 }

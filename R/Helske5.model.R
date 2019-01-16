@@ -17,22 +17,33 @@ Helske5.model <- function(tdf1df2, veh) {
   start  <- 0
   end    <- 100
   data   <- ts(df, start, end)
-  # See Helske3.R
-  dt     <- 0.125
-  Zt     <- matrix(c(1,dt,dt^2),1,3)
-  Ht     <- matrix(NA)
-  Tt     <- matrix(c(1,0,0,0,1,0,0,0,1),3,3)
-  Rt     <- diag(1,3)
-  Qt     <- matrix(c(0,0,0,0,0,0,0,0,NA),3,3)
-  model2 <- SSModel(z ~  SSMcustom(Z = Zt, T = Tt, R = Rt, Qt), H = Ht, data = data)
-  fit2   <- fitSSM(model2, inits = c(0,0), method = "BFGS")
-  out2   <- KFS(fit2$model)
-  Qhat2  <- round(as.numeric(fit2$model$Q),2)
-  Hhat2  <- round(as.numeric(fit2$model$H),2)
+  # See Helske4.R
+  model  <- SSModel(z ~  SSMcustom(Z = matrix(c(1,0.125),1,2),
+                                   T = diag(1,2),
+                                   R = diag(1,2),
+                                   Q = matrix(c(NA,0,0,NA),2,2),
+                                   P1 = matrix(c(200,0,0,200),2,2),
+            ),
+            H = NA,
+            distribution = "gaussian",
+            data = data,
+            tol  = .Machine$double.eps^0.5)
+  updatefn <- function(pars, model) {
+    model["H"]  <- pars[1]
+    model["Q"]  <- c(pars[2], pars[3])
+    model
+  }
+  check_model <- function(model) (model["H"]  > 0 &  model["Q"] > 0)
+  fit   <- fitSSM(model,  updatefn = updatefn,
+                  check_fn = check_model,
+                  inits = as.numeric(c(1,1,1)), method = "BFGS")
+  out   <- KFS(fit$model)
+  print(out$P[,,end])
+
 
   par(mfrow = c(1,1), pty = "s", mar = c(3,0,1,1))
 
-  ts.plot(data[,1], data[,2], ts(rowSums(out2$a)), out2$muhat,
+  ts.plot(data[,1], data[,2], ts(rowSums(out$a)), out$muhat,
           col = c("gold", gray(0.5), "blue",  "black"),
           #      ylim = c(u - 3.5*max(c(Q0,H)), u + 3.5*max(c(Q0,H))),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)

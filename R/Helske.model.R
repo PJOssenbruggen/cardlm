@@ -1,39 +1,49 @@
-#' \code{Helske.model} is a wrapper function for estimating a successful, safe merge.
+#' \code{Helske.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.
 #'
-#' @usage uses \code{Helske.model}, \code{xab} and \code{uab} from the \code{cartools} Package.
-# #' @param tdf1df2, time, speed and locations, a matrix
+#' @param usd standard deviation of speed in mph, a number.
 # #' @examples
-# #' Helske.model()
+# #' Helske.model(usd)
+#' @usage Helske.model(usd)
 #' @export
-Helske.model <- function() {
+Helske.model <- function(usd) {
+  set.seed(123)
   Q0     <- 0
-  H      <- round(5 * 5280/3600,1) # Observation noise
+  H      <- round(usd * 5280/3600,1) # Observation noise
   u      <- 78
-  x      <- rnorm(100, u, Q0)
-  z      <- rnorm(100, x, H)
+  x      <- rnorm(321, u, Q0)        # Gold Standard
+  z      <- rnorm(321, x, H)
   df     <- data.frame(x,z)
   start  <- 0
-  end    <- 100
-  data   <- ts(df, start, end)
-  model1 <- SSModel(z ~ SSMtrend(1, Q = NA), H = NA, data = data)
-  fit1   <- fitSSM(model1, inits = c(0,0), method = "BFGS")
-  out1   <- KFS(fit1$model)
-  Qhat1  <- round(as.numeric(fit1$model$Q),2)
-  Hhat1  <- round(as.numeric(fit1$model$H),2)
-  df     <- data.frame(Z = as.numeric(fit1$model$Z), H, Hhat1, Q = Q0, Qhat1)
+  end    <- 40
+  data   <- ts(df, start, end, frequency = 8)
 
-  #par(mfrow = c(1,1), pty = "s")
-  # plot 1
-  layout(mat = matrix(c(1,1,0,2),2,2), widths = c(3,1), height = c(3,1))
-  par(mar = c(3,0,1,1))
-  ts.plot(data[,1], data[,2], out1$a, out1$muhat,
+  model  <- SSModel(z ~ SSMtrend(1, Q = NA), H = NA, data = data)
+  fit    <- fitSSM(model, inits = c(0,0), method = "BFGS")
+  out    <- KFS(fit$model)
+
+  print("y_t+1 = Z*a_t + H")
+  print("Z")
+  print(model$Z)
+  print("H")
+  print(model$H)
+  print("a_t+1 = T*a_t + R*Q")
+  print("T")
+  print(model$T)
+  print("R")
+  print(model$R)
+  print("Q")
+  print(model$Q)
+
+  layout(mat = matrix(c(1,1,2,0),2,2), widths = c(3,1), height = c(3,1))
+  par(mar = c(1,3,1,3), pty = "s")
+  ts.plot(data[,1], data[,2], out$att, out$muhat,
           col = c("gold", gray(0.5), "blue",  "black"),
           ylim = c(u - 3.5*max(c(Q0,H)), u + 3.5*max(c(Q0,H))),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
-  title(main = "Predictions")
+  title(main = "SSMtrend Speed Model")
   legend("bottomright",
-         legend = c("Gold Standard", "Observed", "One-step ahead", "Smoothed" ),
+         legend = c("Gold Standard", "Observed", "One-step ahead predictions", "Smoothed predictions" ),
          lty = c(1,3,1,1),
          lwd = c(6,2,2,2),
          col = c("gold", gray(0.5), "blue","black"),
@@ -41,59 +51,20 @@ Helske.model <- function() {
 
   legend("topleft",c(
     expression(""),
-    bquote(u == .(u)),
-    bquote(sigma == .(H))),
+    bquote(bar(u) == .(u)),
+    bquote(sigma[w] == .(H))),
     bty = "n"
   )
 
-  ts.plot(out1$P[1,,], col = "black", ylab = "P", lwd = 2)
+  ts.plot(ts(out$P[1,,], start, end, frequency = 8), col = "black", ylab = "P", lwd = 2)
   title(main = "Covariance")
-  legend("topright",c(
-    expression(""),
-    bquote(H == .(H)),
-    bquote(Q == .(Q0)),
-    bquote(hat(H) == .(Hhat1)),
-    bquote(hat(Q) == .(Qhat1))),
-    bty = "n"
-  )
 
 
   ### Notes
-  # 1. u = 50 = speed
+  # 1. u = 53 mph = 78 fps = speed
   # 2. Q = 0 Here, the goal is to reach u = 50
+  # 3. tracks well for all usd
+  # 4. Covariance quickly reach steady state.
 
-  if(FALSE) {
-    ### Q and H assigned
-    model <- SSModel(z ~ SSMtrend(1, Q = 0.01), H = 0.01)
-    out   <- KFS(model)
-    par(mfrow = c(1,1), pty = "s")
-    ts.plot(ts(x), out$a, out$att, out$alpha, col = 1:4,  ylab = "z")
-    title(main = "out")
-    browser()
-    print(data.frame(Z = as.numeric(model$Z), H = as.numeric(model$H), T = as.numeric(model$T),
-                     Q = as.numeric(model$Q)))
-    ### Cannot debug the following "poisson."
-    ts.plot(out1$P[1,,], col = "black", ylab = "P")
-    title(main = "out1")
-
-    model2 <- SSModel(z ~ SSMtrend(1, Q = NA),
-                      SSMcustom(Z = 1, T = 0, Q = NA, P1 = NA),
-                      distribution = "poisson", u = x)
-    update_poisson <- function(pars, model2) {
-      model2["Q", etas = "level"] <- exp(pars[1])
-      model2["Q", etas = "custom"] <- exp(pars[1])
-      model2
-    }
-    fit2   <- fitSSM(model2, inits = c(3,3), updatafn = update_poisson, method = "BFGS")
-    fit2$model["Q", etas = "level"]
-    fit2$model["Q", etas = "custom"]
-    out2   <- KFS(fit2$model)
-    ts.plot(ts(x), out2$a, out2$att, out2$alpha, col = 1:4)
-    title(main = "out2")
-    # 3. simulate
-    simmodel <- SSModel(z ~ SSMtrend(1, Q = as.numeric(fit1$model$Q)), H = as.numeric(fit1$model$H))
-    sim      <- simulateSSM(simmodel, type = "states")
-  }
-
-  return(list(model1, fit1, out1, df, out1$v))
+  return(list(model, fit, out, data))
 }
