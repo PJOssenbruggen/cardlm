@@ -1,35 +1,63 @@
-#' \code{Helske4.model} is a wrapper function for estimating a successful, safe merge.
+#' \code{Helske4.model} is a wrapper function straight road experiment
 #'
 #' @param usd standard deviation of speed in mph, a number.
-#' @usage uses \code{Helske4.model}, \code{xab} and \code{uab} from the \code{cartools} Package.
+#' @param zsd standard deviation of measuring location, a number.
+#' @usage uses \code{Helske4.model} is an extension of \code{Helske} models 1, 2 and 3
 #' @param veh, a number
 # #' @examples
-# #' Helske4.model(usd)
+# #' Helske4.model(usd, zsd)
 #' @export
-Helske4.model <- function(usd) {
+Helske4.model <- function(usd,zsd) {
   set.seed(123)
-  Q0     <- 0
-  H      <- round(usd * 5280/3600,1) # Observation noise
-  u      <- 78
-  tseq   <- seq(0,40,0.125)
-  u.     <- rnorm(321, u, Q0)        # Gold Standard
-  x.     <- u * tseq - 700
-  u.r    <- rnorm(321, u, H)
-  x.r    <- rep(NA, length(tseq))
-  x.r[1] <- -700
-  for(i in 2:length(tseq)) x.r[i] <- x.r[i-1] + u.r[i] * 0.125
-  df     <- data.frame(u.gold = u., x.gold = x., z1 = u.r, z2 = x.r)
   start  <- 0
   end    <- 40
-  data   <- ts(df, start, end, frequency = 8)
+  tseq   <- seq(0,40,0.125)
+  Q0     <- 0
+  u.e    <- rnorm(length(tseq), 0, usd*5280/3600) # Orbital speed noise
+  u      <- 78            # uniform speed fps
+  v.o    <- rep(u,length(tseq)) + u.e             # v.o = u + u.e, orbital speed with noise
+  z.e    <- rnorm(length(tseq), 0, zsd)           # Deviation from the centerline (noise)
+  r.o    <- rep(u,length(tseq)) + u.e             # v.o = u + u.e, orbital speed with noise
+  r      <- 100                                   # road radius (feet)
+  d      <- u*tseq                                # distance travelled, orbit circumference location from starting point (x = r, y  =  0)
+  d.o    <- rep(0, length(tseq))
+  for(i in 2:length(tseq)) d.o[i] <- d.o[i-1] + v.o[i]*0.125
+  z.o    <- rep(r,length(tseq)) + z.e
+  for(i in 2:length(tseq)) z.o[i] <- z.o[i-1] + z.e[i]
+  df     <- data.frame(t = tseq, x = r*cos(d/r), y = r*sin(d/r),
+                       u.x = rep(u,length(tseq))*cos(d/r), u.y = rep(u,length(tseq))*sin(d/r),
+                       v.x = v.o*cos(d/r), v.y = v.o*sin(d/r),
+                       z.x = z.o*cos(d.o/r), z.y = z.o*sin(d.o/r), d.o)
+  df     <- cbind(df, theta.rad = asin(df$y/r))
+##########################################################################################
+  par(mfrow = c(2,2), pty = "s")
+  plot(df$x,df$y, typ = "l", xlim = c(-120,120),
+       ylim = c(-120,120), axes = FALSE, xlab = "", ylab = "", col = gray(0.8), lwd = 20)
+  lines(df$x,df$y, col = "yellow")
+  lines(df$z.x, df$z.y, cex = 0.25, col = "black", lty = 3)
+  title(main = "Ring Road")
+  arrows(0,0,100,0, angle = 25, length = 0.1)
+  text(50,0, labels = "r = 50", pos = 3)
 
-  model  <- SSModel(data[,c(3,4)] ~ SSMtrend(1, Q = matrix(NA), index = c(1,2)),
-                      H    = matrix(c(NA,0,0,NA),2,2),
-                      distribution = "gaussian",
-                      data = data,
-                      tol  = .Machine$double.eps^0.5
-                      )
+  data <- ts(df[,-1], start, end, frequency = 8)
+  ts.plot(window(data, start = c(0,1), end = c(15,0))[,c(5,6)],
+          col = c("black", "blue"),
+          ylab = "z(t), feet", lty = c(1,1), lwd = c(2,2)
+  )
+  title(main = expression("("*dot(x)[t]*","*dot(y)[t]*")"))
+  abline(h = 0, col = gray(0.5))
 
+########################################################################################
+  model  <- SSModel(data[,5] ~  -1 + SSMcycle(period = 2*pi, Q = NA),
+                    H = matrix(NA,1,1),
+                    distribution = "gaussian",
+                    data = data,
+                    tol  = .Machine$double.eps^0.5)
+  update_model <- function(pars, model) {
+    model["H"] <- pars[1]
+    model["Q"] <- pars[2:3]
+    model
+  }
   print("y_t+1 = Z*a_t + H")
   print("Z")
   print(model$Z)
@@ -42,61 +70,103 @@ Helske4.model <- function(usd) {
   print(model$R)
   print("Q")
   print(model$Q)
-
-  browser()
-
-  check_model  <- function(model) (model["H"]  > 0 &  model["Q"] > 0)
-  update_model <- function(pars, model) {
-       model["H"] <- pars[1:2]
-       model["Q"] <- pars[3:6]
-       model
-       }
+  check_model  <- function(model) (model["H"] > 0 & model$Q[1,1,1] > 0 & model$Q[2,2,1] > 0)
   fit         <- fitSSM(model,
-                        updatefn = update_model,
+                        inits    = rep(0.1,3),
                         checkfn  = check_model,
-                        inits    = rep(0.1,6),
+                        updatefn = update_model,
                         method   = "BFGS")
   out         <- KFS(fit$model)
   print(out$P[,,end])
+  Out <- ts(data.frame(df[,-1], smooth = out$muhat, prd = out$att),start, end, frequency = 8)
 
-  layout(mat = matrix(c(1,1,2,0),2,2), widths = c(3,1), height = c(3,1))
-  par(mar = c(1,3,1,3), pty = "s")
-  print("Q and R")
-  print(fit$optim.out[[1]])
 
-  browser()
-
-  Out <- ts(data.frame(stand = data[,1], obs = data[,3], smooth = out$muhat[,1], prd = out$a[-1,1]),
-            start, end, frequency = 8)
-  ts.plot(window(Out, start = c(0,1), end = c(10,0)),
+  ts.plot(window(Out, start = c(0,1), end = c(20,0))[,c(3,5,11,12)],
           col = c("gold", gray(0.5), "black", "blue"),
-          ylim = c(u - 3.5*max(c(Q0,H)), u + 3.5*max(c(Q0,H))),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
-  title(main = "Location/Speed Trend Model")
-  legend("bottomright",
-         legend = c("Gold Standard", "Observed", "One-step ahead", "Smoothed" ),
-         lty = c(1,3,1,1),
-         lwd = c(6,2,2,2),
-         col = c("gold", gray(0.5), "blue","black"),
-         bty = "n")
+  title(main = "SSMcycle Speed Predictions")
 
-  legend("topleft",c(
-    expression(""),
-    bquote(bar(u) == .(u)),
-    bquote(sigma[w] == .(H))),
-    bty = "n"
-  )
-  P  <- ts(out$P[1,,][1,], start, end, frequency = 8)
-  ts.plot(window(P, start = c(0,1), end = c(3,0)), col = "black", ylab = "P", lwd = 2)
+
+
+  p1 <- as.numeric(out$P[1,,][1,])
+  p2 <- as.numeric(out$P[1,,][2,])
+  plot(tseq, p1[-1], typ = "l", lwd = 2, ylim = c(0,max(c(p1,p2))))
+  lines(tseq,p2[-1], lwd = 2)
   title(main = "Covariance")
 
-  ### Notes
-  # 1. u = 50 = speed
-  # 2. Q = 0 Here, the goal is to reach u = 50
-  # 3. tracks well for all usd
-  # 4. Covariance quickly reach steady state
 
 
-  return(list(model, fit, out, df))
+########################################################################################
+  if(FALSE) {
+    model  <- SSModel(data[,c(3,4,5,6)] ~  -1 +
+                        SSMcustom(Z  = matrix(c(1,0.125,0,0,0,1,0,0,0,0,1,0.125,0,0,0,1),4,4),
+                                  T  = matrix(c(1,0.125,0,0,0,1,0,0,0,0,1,0.125,0,0,0,1),4,4),
+                                  R  = matrix(c(1,0.125/2,1,0.125/2),4,1),
+                                  Q  = matrix(NA),
+                                  P1inf = diag(4)
+                        ),
+                      H = matrix(c(NA,NA,NA,NA),4,4),
+                      distribution = "gaussian",
+                      data = data,
+                      tol  = .Machine$double.eps^0.5)
+    print("y_t+1 = Z*a_t + H")
+    print("Z")
+    print(model$Z)
+    print("H")
+    print(model$H)
+    print("a_t+1 = T*a_t + R*Q")
+    print("T")
+    print(model$T)
+    print("R")
+    print(model$R)
+    print("Q")
+    print(model$Q)
+    ###########################################################################################################
+    check_model  <- function(model) (model$H[1,1,1]  > 0 &
+                                       model$H[2,2,1]  > 0 &
+                                       model$H[3,3,1]  > 0 &
+                                       model$H[4,4,1]  > 0 &
+                                       model["Q"] > 0)
+    update_model <- function(pars, model) {
+      model["H"] <- pars[1:16]
+      model["Q"] <- pars[17]
+      model
+    }
+    fit         <- fitSSM(model,
+                          updatefn = update_model,
+                          checkfn  = check_model,
+                          inits    = rep(0.1,17),
+                          method   = "BFGS")
+    out         <- KFS(fit$model)
+    print(out$P[,,end])
+    Out <- data.frame(df, smooth = out$muhat, prd = out$att)
+    title(main = "Location/Speed Trend Model")
+    lines(Out$smooth.z.x, Out$smooth.z.y, cex = 0.25, col = "black", lty = 1)
+    lines(Out$prd.custom3, Out$prd.custom4, cex = 0.25, col = "blue", lty = 1)
+    legend("bottomright",
+           legend = c("Gold Standard", "Observed", "One-step ahead", "Smoothed" ),
+           lty = c(1,3,1,1),
+           lwd = c(6,2,2,2),
+           col = c("gold", gray(0.5), "blue","black"),
+           bty = "n")
+
+    legend("topleft",c(
+      expression(""),
+      bquote(bar(u) == .(u)),
+      bquote(sigma[w] == .(H))),
+      bty = "n"
+    )
+    P  <- ts(out$P[1,,])
+    ts.plot(window(P, start = c(0,1), end = c(15,0)), col = "black", ylab = "P", lwd = 2)
+    title(main = "Covariance")
+
+    ### Notes
+    # 1. u = 50 = speed
+    # 2. Q = 0 Here, the goal is to reach u = 50
+    # 3. tracks well for all usd
+    # 4. Covariance quickly reach steady state
+
+    return(list(model, fit, out, df))
+  }
 }

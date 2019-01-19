@@ -45,7 +45,7 @@ Helske3.model <- function(usd) {
 
   check_model <- function(model) (model["H"]  > 0 &  model["Q"] > 0)
   fit         <- fitSSM(model,
-                        updatefn = updatefn,
+               #         updatefn = updatefn,
                         check_fn = check_model,
                         inits    = rep(u/10,2),
                         method   = "BFGS")

@@ -1,65 +1,165 @@
-#' \code{Helske6.model} is a wrapper function for estimating a successful, safe merge.
+#' \code{Helske6.model} is a wrapper function ring road experiment
 #'
-#' @usage uses \code{Helske6.model}, \code{xab} and \code{uab} from the \code{cartools} Package.
-#' @param tdf1df2, time, speed and locations, a matrix
+#' @param usd standard deviation of speed in mph, a number.
+#' @param zsd standard deviation of measuring location, a number.
+#' @usage uses \code{Helske4.model} is an extension of \code{Helske} models 1, 2 and 3
 #' @param veh, a number
 # #' @examples
-# #' Helske6.model(tdf1df2, veh)
+# #' Helske6.model(usd)
 #' @export
-Helske6.model <- function(tdf1df2, veh) {
-  vehseq <- seq(2,31,3)
-  z      <- tdf1df2[1:100, vehseq[veh]]
-  H      <- round(5 * 5280/3600, 2)
-  u      <- 78
-  Q0     <- 0
-  x      <- rnorm(100, u, Q0)
-  df     <- data.frame(x, z)
+Helske6.model <- function(usd,zsd) {
+  set.seed(123)
   start  <- 0
-  end    <- 100
-  data   <- ts(df, start, end)
-  # See Helske6.R
-  model  <- SSModel(z ~  SSMcustom(Z = matrix(c(1,0.125, 0.5 * 0.125^2),1,3),
-                                   T = diag(1,3),
-                                   R = diag(1,3),
-                                   Q = matrix(NA,3,3),
-                                   P1 = matrix(100,3,3),
-                          ),
-                          H = NA,
-                          distribution = "gaussian",
-                          data = data,
-                          tol  = .Machine$double.eps^0.5)
-  updatefn <- function(pars, model) {
-    model["H"]  <- pars[1]
-    model["Q"]  <- c(pars[2], pars[3])
+  end    <- 40
+  tseq   <- seq(0,40,0.125)
+  Q0     <- 0
+  r      <- 100                                   # road radius (feet)
+  u      <- 78                                    # uniform speed fps
+  z      <- u*tseq                                # distance travelled (feet)
+  u      <- rep(u,length(tseq))
+  u.e    <- rnorm(length(tseq), 0, usd*5280/3600) # Orbital speed noise
+  v.e    <- u + u.e                               # v.e = orbital speed with noise
+  z.e    <- rep(0, length(tseq))                  # distance travelled, orbit circumference location from starting point (x = r, y  =  0)
+  z.e[1] <- 0
+  for(i in 2:length(tseq)) z.e[i] <- z.e[i-1] + v.e[i]*0.125
+  theta  <- 2*z/r
+  theta.e<- 2*z.e/r
+  x      <- r*cos(theta)
+  y      <- r*sin(theta)
+  x.e    <- r*cos(theta.e)
+  y.e    <- r*sin(theta.e)
+  v.x    <- v.e*sin(pi/2 + theta.e)
+  v.y    <- v.e*cos(pi/2 + theta.e)
+  df     <- data.frame(t   = tseq, theta, theta.e, u, z, x, y, v.x, v.y, x.e, y.e )
+  if(FALSE) {data.frame(
+    u   = u,                    z,
+    x   = r - r*sin(2*pi*z/r),  y   = r - r*cos(2*pi*z/r),
+    v.x = v.e*sin(2*pi*z/r),    v.y = v.e*cos(2*pi*z/r),
+    z.x = r*sin(2*pi*z/r),    z.y = r*cos(2*pi*z/r))
+
+
+  }
+  df.check <- data.frame(u = df$u, u.check = sqrt(df$v.x^2 + df$v.y^2),
+                         z = df$z, z.check = sqrt(df$x.e^2 + df$y.e^2))
+  # u, z     = speed distance travelled along the ring road circumference with no noise
+  # v.e, z.e = speed distance travelled along the ring road circumference with
+
+  par(mfrow = c(2,2), pty = "s")
+  plot(r*cos(d/r), r*sin(d/r), typ = "l", xlim = c(-120,120),
+       ylim = c(-120,120), axes = FALSE, xlab = "", ylab = "", col = gray(0.8), lwd = 20)
+  lines(r*cos(d/r), r*sin(d/r), col = "yellow")
+  for(i in 1:30) {
+    points(df$x[i], df$y[i], cex = 0.75, col = "orange")
+    points(df$x.e[i], df$y.e[i], cex = 0.5, col = "black", pch = 16)
+    }
+  title(main = "Ring Road")
+  arrows(0,0,100,0, angle = 25, length = 0.1)
+  text(50,0, labels = "r = 50", pos = 3)
+
+  browser()
+  ##########################################################################################
+  data <- ts(df[,-c(1:3)], start, end, frequency = 8)
+  # print(df.check)
+  if(FALSE) {
+    ts.plot(window(data, start = c(0,1), end = c(40,0))[,c(5,6)],
+            col = c("black", "blue"),
+            ylab = "u(t), fps", lty = c(1,1), lwd = c(2,2)
+    )
+    abline(h = 0, col = gray(0.3))
+    abline(v = 0, col = gray(0.3))
+    title(main = expression("("*dot(x)[t]*","*dot(y)[t]*")"))
+    ts.plot(window(data, start = c(0,1), end = c(40,0))[,c(7,8)],
+            col = c("black", "blue"),
+            ylab = "z(t), feet", lty = c(1,1), lwd = c(2,2)
+    )
+    abline(h = 0, col = gray(0.3))
+    abline(v = 0, col = gray(0.3))
+    title(main = expression("("*x[t]*","*y[t]*")"))
+
+    ts.plot(window(sqrt(data[,7]^2+data[,8]^2), start = c(0,1), end = c(40,0)),
+            col = c("black"),
+            ylab = "z(t), feet", lty = c(1), lwd = c(2)
+    )
+    abline(h = 0, col = gray(0.3))
+    abline(v = 0, col = gray(0.3))
+    title(main = expression("("*x[t]*","*y[t]*") check"))
+  }
+  print(head(data))
+  ########################################################################################
+  alpha  <- sqrt((u^2-usd^2)/u^2)
+  alpha  <- 1
+  model  <- SSModel(data[,c(5,7,6,8)] ~  -1 +
+                      SSMcustom(Z  = matrix(c(alpha,0.125,0,0,0,1,0,0,0,0,alpha,0.125,0,0,0,1),4,4),
+                                T  = matrix(c(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1),4,4),
+                                R  = matrix(c(1,0.125/2,1,0.125/2),4,1),
+                                Q  = matrix(NA),
+                                P1inf = diag(4)
+                      ),
+                    H = matrix(c(NA,NA,NA,NA),4,4),
+                    distribution = "gaussian",
+                    data = data,
+                    tol  = .Machine$double.eps^0.5)
+  update_model <- function(pars, model) {
+    model["H"] <- pars[1:16]
+    model["Q"] <- pars[17]
     model
   }
-  check_model <- function(model) (model["H"] > 0 &  model["Q"] > 0)
-  fit   <- fitSSM(model,  updatefn = updatefn,
-                  check_fn = check_model,
-                  inits = as.numeric(c(1,1,1,1)), method = "BFGS")
-  out   <- KFS(fit$model)
+  print("y_t+1 = Z*a_t + H")
+  print("Z")
+  print(model$Z)
+  print("H")
+  print(model$H)
+  print("a_t+1 = T*a_t + R*Q")
+  print("T")
+  print(model$T)
+  print("R")
+  print(model$R)
+  print("Q")
+  print(model$Q)
+  check_model  <- function(model) (model$H[1,1,1] > 0 &
+                                   model$H[2,2,1] > 0 &
+                                   model$H[3,3,1] > 0 &
+                                   model$H[4,4,1] > 0 &
+                                   model$Q[1,1,1] > 0
+                                   )
+  fit         <- fitSSM(model,
+                        inits    = rep(10,17),
+                        checkfn  = check_model,
+                        updatefn = update_model,
+                        method   = "BFGS")
+  out         <- KFS(fit$model)
   print(out$P[,,end])
 
-  par(mfrow = c(1,1), pty = "s", mar = c(3,0,1,1))
+  Out <- ts(data.frame(gold.v   = u,
+                       gold.z   = z,
+                       obs.v    = sqrt(data[,5]^2 + data[,6]^2),
+                       obs.z    = sqrt(data[,7]^2 + data[,8]^2),
+                       smooth.v = sqrt(out$muhat[,1]^2 + out$muhat[,3]^2),
+                       smooth.z = sqrt(out$muhat[,2]^2 + out$muhat[,4]^2),
+                       prd.v    = sqrt(out$att[,1]^2 + out$att[,3]^2),
+                       prd.x    = sqrt(out$att[,2]^2 + out$att[,4]^2)
+                       ),
+                       start, end, frequency = 8)
+  browser()
 
-  ts.plot(data[,1], data[,2], ts(rowSums(out$a)), out$muhat,
-          col = c("gold", gray(0.5), "blue",  "black"),
-          #      ylim = c(u - 3.5*max(c(Q0,H)), u + 3.5*max(c(Q0,H))),
+  ts.plot(window(Out, start = c(0,1), end = c(20,0))[,c(1,3,5,7)],
+          col = c("gold", gray(0.5), "black", "blue"),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
-  title(main = "Intercept Speed Model")
-  legend("bottomright",
-         legend = c("Gold Standard", "Observed", "One-step ahead", "Smoothed" ),
-         lty = c(1,3,1,1),
-         lwd = c(6,2,2,2),
-         col = c("gold", gray(0.5), "blue","black"),
-         bty = "n")
+  title(main = "SSMcycle Speed Model")
 
-  legend("topleft",c(
-    expression(""),
-    bquote(u == .(u)),
-    bquote(sigma == .(H))),
-    bty = "n"
+  ts.plot(window(Out, start = c(0,1), end = c(40,0))[,c(2,4,6,8)],
+          col = c("gold", gray(0.5), "black", "blue"),
+          ylab = "x(t), feet", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
-  return(list(model, fit, out, df))
+  title(main = "SSMcycle Location Model")
+    p1 <- as.numeric(out$P[1,,][1,])
+    p2 <- as.numeric(out$P[1,,][2,])
+    plot(tseq, p1[-1], typ = "l", lwd = 2, ylim = c(0,max(c(p1,p2))))
+    lines(tseq,p2[-1], lwd = 2)
+    title(main = "Covariance")
+  browser()
+
+
+  ########################################################################################
 }

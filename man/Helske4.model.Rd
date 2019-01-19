@@ -2,15 +2,17 @@
 % Please edit documentation in R/Helske4.model.R
 \name{Helske4.model}
 \alias{Helske4.model}
-\title{\code{Helske4.model} is a wrapper function for estimating a successful, safe merge.}
+\title{\code{Helske4.model} is a wrapper function straight road experiment}
 \usage{
-uses \code{Helske4.model}, \code{xab} and \code{uab} from the \code{cartools} Package.
+uses \code{Helske4.model} is an extension of \code{Helske} models 1, 2 and 3
 }
 \arguments{
 \item{usd}{standard deviation of speed in mph, a number.}
 
+\item{zsd}{standard deviation of measuring location, a number.}
+
 \item{veh, }{a number}
 }
 \description{
-\code{Helske4.model} is a wrapper function for estimating a successful, safe merge.
+\code{Helske4.model} is a wrapper function straight road experiment
 }
