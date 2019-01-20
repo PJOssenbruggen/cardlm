@@ -14,6 +14,7 @@ Helske6.model <- function(usd,zsd) {
   tseq   <- seq(0,40,0.125)
   Q0     <- 0
   r      <- 100                                   # road radius (feet)
+  d      <- 2*pi*r                                # road circumference
   u      <- 78                                    # uniform speed fps
   z      <- u*tseq                                # distance travelled (feet)
   u      <- rep(u,length(tseq))
@@ -24,39 +25,35 @@ Helske6.model <- function(usd,zsd) {
   for(i in 2:length(tseq)) z.e[i] <- z.e[i-1] + v.e[i]*0.125
   theta  <- 2*z/r
   theta.e<- 2*z.e/r
-  x      <- r*cos(theta)
-  y      <- r*sin(theta)
-  x.e    <- r*cos(theta.e)
-  y.e    <- r*sin(theta.e)
-  v.x    <- v.e*sin(pi/2 + theta.e)
-  v.y    <- v.e*cos(pi/2 + theta.e)
-  df     <- data.frame(t   = tseq, theta, theta.e, u, z, x, y, v.x, v.y, x.e, y.e )
-  if(FALSE) {data.frame(
-    u   = u,                    z,
-    x   = r - r*sin(2*pi*z/r),  y   = r - r*cos(2*pi*z/r),
-    v.x = v.e*sin(2*pi*z/r),    v.y = v.e*cos(2*pi*z/r),
-    z.x = r*sin(2*pi*z/r),    z.y = r*cos(2*pi*z/r))
+  x      <- z*cos(theta)
+  y      <- z*sin(theta)
+  x.e    <- z*cos(theta.e)
+  y.e    <- z*sin(theta.e)
+  v.x    <- v.e*sin(theta.e)
+  v.y    <- v.e*cos(theta.e)
+  df     <- data.frame(t   = tseq, theta, theta.e, u, z, x, y, v.x, v.y, x.e, y.e,
+                       degree = 180/pi*theta, cosign = sign(cos(theta)), sinsign = sign(sin(theta)),
+                       degree.e = 180/pi*theta.e, cosign.e = sign(cos(theta.e)), sinsign.e = sign(sin(theta.e)))
 
-
-  }
   df.check <- data.frame(u = df$u, u.check = sqrt(df$v.x^2 + df$v.y^2),
                          z = df$z, z.check = sqrt(df$x.e^2 + df$y.e^2))
   # u, z     = speed distance travelled along the ring road circumference with no noise
   # v.e, z.e = speed distance travelled along the ring road circumference with
+#  print(head(df))
+#  print(tail(df))
 
   par(mfrow = c(2,2), pty = "s")
-  plot(r*cos(d/r), r*sin(d/r), typ = "l", xlim = c(-120,120),
+  plot(r*cos(theta), r*sin(theta), typ = "l", xlim = c(-120,120),
        ylim = c(-120,120), axes = FALSE, xlab = "", ylab = "", col = gray(0.8), lwd = 20)
-  lines(r*cos(d/r), r*sin(d/r), col = "yellow")
+  lines(r*cos(theta), r*sin(theta), col = "white")
   for(i in 1:30) {
-    points(df$x[i], df$y[i], cex = 0.75, col = "orange")
-    points(df$x.e[i], df$y.e[i], cex = 0.5, col = "black", pch = 16)
+    points(r*cos(theta)[i], r*sin(theta)[i], cex = 0.75, col = "orange")
+    points(r*cos(theta.e)[i], r*sin(theta.e)[i], cex = 0.5, col = "black", pch = 16)
     }
   title(main = "Ring Road")
   arrows(0,0,100,0, angle = 25, length = 0.1)
   text(50,0, labels = "r = 50", pos = 3)
 
-  browser()
   ##########################################################################################
   data <- ts(df[,-c(1:3)], start, end, frequency = 8)
   # print(df.check)
@@ -84,8 +81,11 @@ Helske6.model <- function(usd,zsd) {
     abline(v = 0, col = gray(0.3))
     title(main = expression("("*x[t]*","*y[t]*") check"))
   }
-  print(head(data))
+
   ########################################################################################
+#  print(head(data))
+#  print(tail(data))
+  browser()
   alpha  <- sqrt((u^2-usd^2)/u^2)
   alpha  <- 1
   model  <- SSModel(data[,c(5,7,6,8)] ~  -1 +
@@ -95,7 +95,7 @@ Helske6.model <- function(usd,zsd) {
                                 Q  = matrix(NA),
                                 P1inf = diag(4)
                       ),
-                    H = matrix(c(NA,NA,NA,NA),4,4),
+                    H = matrix(NA,4,4),
                     distribution = "gaussian",
                     data = data,
                     tol  = .Machine$double.eps^0.5)
@@ -123,12 +123,13 @@ Helske6.model <- function(usd,zsd) {
                                    model$Q[1,1,1] > 0
                                    )
   fit         <- fitSSM(model,
-                        inits    = rep(10,17),
+                        inits    = rep(1,17),
                         checkfn  = check_model,
                         updatefn = update_model,
                         method   = "BFGS")
-  out         <- KFS(fit$model)
+  out         <- KFS(fit$model, transform = "augment")
   print(out$P[,,end])
+  print(out$Pinf)
 
   Out <- ts(data.frame(gold.v   = u,
                        gold.z   = z,
@@ -140,22 +141,24 @@ Helske6.model <- function(usd,zsd) {
                        prd.x    = sqrt(out$att[,2]^2 + out$att[,4]^2)
                        ),
                        start, end, frequency = 8)
+  head(Out)
+  tail(Out)
   browser()
 
-  ts.plot(window(Out, start = c(0,1), end = c(20,0))[,c(1,3,5,7)],
+  ts.plot(window(Out, start = c(0,1), end = c(40,1))[,c(1,3,5,7)],
           col = c("gold", gray(0.5), "black", "blue"),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
   title(main = "SSMcycle Speed Model")
 
-  ts.plot(window(Out, start = c(0,1), end = c(40,0))[,c(2,4,6,8)],
+  ts.plot(window(Out, start = c(0,1), end = c(40,1))[,c(2,4,6,8)],
           col = c("gold", gray(0.5), "black", "blue"),
           ylab = "x(t), feet", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
   title(main = "SSMcycle Location Model")
     p1 <- as.numeric(out$P[1,,][1,])
     p2 <- as.numeric(out$P[1,,][2,])
-    plot(tseq, p1[-1], typ = "l", lwd = 2, ylim = c(0,max(c(p1,p2))))
+    plot(tseq, p1[-1], typ = "l", lwd = 2, ylim = c(0,max(c(p1,p2))), xlab = "Time", ylab = "P")
     lines(tseq,p2[-1], lwd = 2)
     title(main = "Covariance")
   browser()

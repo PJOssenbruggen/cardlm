@@ -38,19 +38,18 @@ Helske7.model <- function(usd,zsd) {
          lwd = c(2,2),
          col = c("gold", gray(0.5)),
          bty = "n")
-  browser()
   ########################################################################################
   alpha  <- sqrt((u^2-usd^2)/u^2)
   alpha  <- 1
   data   <- ts(df[,-1], start, end, frequency = 8)
   model  <- SSModel(data[,c(3,4)] ~  -1 +
                       SSMcustom(Z  = matrix(c(alpha,0.125,0,1),2,2),
-                                T  = matrix(c(1,0.125,0,1),2,2),
-                                R  = matrix(c(1,0.125/2),2,1),
-                                Q  = matrix(NA),
+                                T  = matrix(c(1,0,0,1),2,2),
+                                R  = matrix(c(1,0,1,0.125/2),2,2),
+                                Q  = matrix(NA,2,2),
                                 P1inf = diag(2)
                       ),
-                    H = matrix(c(NA,NA),2,2),
+                    H = matrix(NA,2,2),
                     distribution = "gaussian",
                     data = data,
                     tol  = .Machine$double.eps^0.5)
@@ -66,39 +65,42 @@ Helske7.model <- function(usd,zsd) {
   print(model$R)
   print("Q")
   print(model$Q)
-
   update_model <- function(pars, model) {
     model["H"] <- pars[1:4]
-    model["Q"] <- pars[5]
+    Q          <- diag(exp(pars[5:6]))
+    Q[upper.tri(Q)] <- pars[7:8]
+    model["Q"] <- crossprod(Q)
     model
   }
   check_model  <- function(model) (  model$H[1,1,1] > 0 &
                                      model$H[2,2,1] > 0 &
-                                     model$Q[1,1,1] > 0
+                                     model$Q[1,1,1] > 0 &
+                                     model$Q[2,2,1] > 0
                                     )
   fit         <- fitSSM(model,
-                        inits    = rep(0.1,17),
+                        inits    = rep(0.1,8),
                         checkfn  = check_model,
                         updatefn = update_model,
                         method   = "BFGS")
-  out         <- KFS(fit$model)
+  out         <- KFS(fit$model, transform = "augment")
   print(out$P[,,end])
+  print(out$Pinf)
 
   Out <- ts(data.frame(df[,-1],
                        smooth.v = out$muhat[,1],
                        smooth.z = out$muhat[,2],
-                       pred.v   = out$att[,1],
-                       pred.z   = out$att[,2]
+                       pred.v   = out$att[,1] + out$att[,3],
+                       pred.z   = out$att[,2] + out$att[,4]
                        ),
             start, end, frequency = 8)
 
-  ts.plot(window(Out, start = c(20,1), end = c(21,0))[,c(1,3,5,7)],
+  ts.plot(window(Out, start = c(20,1), end = c(25,1))[,c(1,3,5,7)],
           col = c("gold", gray(0.5), "black", "blue"),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
   title(main = "Speed Predictions")
 
-  ts.plot(window(Out, start = c(20,1), end = c(21,0))[,c(2,4,6,8)],
+  ts.plot(window(Out, start = c(20,1), end = c(25,1))[,c(2,4,6,8)],
           col = c("gold", gray(0.5), "black", "blue"),
           ylab = "x(t), feet", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
@@ -109,6 +111,9 @@ Helske7.model <- function(usd,zsd) {
          lwd = c(2,2),
          col = c("blue","black"),
          bty = "n")
-  browser()
+  # 1. ldl warning of faillure for H.
+  # 2. Added transform = "augment" to KFS.
+  # 3. H, a 2x2 matrix, has only one unknown parameters.
+  # 4. Q is a 2x2 matrix, which is updated
   return(df)
 }

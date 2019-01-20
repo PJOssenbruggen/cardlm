@@ -23,7 +23,6 @@ Helske2.model <- function(usd) {
   end    <- 40
   data   <- ts(df, start, end, frequency = 8)
 
-
   model  <- SSModel(data[,c(3,4)] ~  -1 +
                       SSMcustom(Z  = matrix(c(1,0.125,0,1),2,2),
                                 T  = matrix(c(1,0.125,0,1),2,2),
@@ -48,6 +47,7 @@ Helske2.model <- function(usd) {
   print("Q")
   print(model$Q)
 ###########################################################################################################
+
   check_model  <- function(model) (model$H[1,1,1] > 0 &  model["Q"] > 0)
   update_model <- function(pars, model) {
     model$H[1,1,1] <- pars[1]
@@ -59,8 +59,9 @@ Helske2.model <- function(usd) {
                         checkfn  = check_model,
                         inits    = rep(10,2),
                         method   = "BFGS")
-  out         <- KFS(fit$model)
+  out         <- KFS(fit$model, transform = "augment")
   print(out$P[,,end])
+  print(out$Pinf)
 
   layout(mat = matrix(c(1,1,2,3),2,2), widths = c(3,1), height = c(3,1))
   par(mar = c(1,3,1,3), pty = "s")
@@ -101,6 +102,9 @@ Helske2.model <- function(usd) {
   # 3. tracks well for all usd
   # 4. Covariance quickly reach steady state
   # 5. An acceleration term did not work.
-
+  # 6. No warning message of ldl failure.
+  # 7. transform = "augment" halts the analysis.
+  # 8. H, a 2x2 matrix, has only one unknown parameters.
+  browser()
   return(list(model, fit, out, df))
 }
