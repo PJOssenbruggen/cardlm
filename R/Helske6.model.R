@@ -32,7 +32,7 @@ Helske6.model <- function(usd,zsd) {
   v.x    <- v.e*sin(theta.e)
   v.y    <- v.e*cos(theta.e)
   df     <- data.frame(t   = tseq, theta, theta.e, u, z, x, y, v.x, v.y, x.e, y.e,
-                       degree = 180/pi*theta, cosign = sign(cos(theta)), sinsign = sign(sin(theta)),
+                       degree   = 180/pi*theta, cosign = sign(cos(theta)), sinsign = sign(sin(theta)),
                        degree.e = 180/pi*theta.e, cosign.e = sign(cos(theta.e)), sinsign.e = sign(sin(theta.e)))
 
   df.check <- data.frame(u = df$u, u.check = sqrt(df$v.x^2 + df$v.y^2),
@@ -91,8 +91,8 @@ Helske6.model <- function(usd,zsd) {
   model  <- SSModel(data[,c(5,7,6,8)] ~  -1 +
                       SSMcustom(Z  = matrix(c(alpha,0.125,0,0,0,1,0,0,0,0,alpha,0.125,0,0,0,1),4,4),
                                 T  = matrix(c(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1),4,4),
-                                R  = matrix(c(1,0.125/2,1,0.125/2),4,1),
-                                Q  = matrix(NA),
+                                R  = matrix(c(1,0.125/2,1,0.125/2),4,4),
+                                Q  = matrix(NA,4,4),
                                 P1inf = diag(4)
                       ),
                     H = matrix(NA,4,4),
@@ -101,7 +101,9 @@ Helske6.model <- function(usd,zsd) {
                     tol  = .Machine$double.eps^0.5)
   update_model <- function(pars, model) {
     model["H"] <- pars[1:16]
-    model["Q"] <- pars[17]
+    Q          <- diag(exp(pars[17:20]))
+    Q[upper.tri(Q)] <- pars[21:26]
+    model["Q"] <- crossprod(Q)
     model
   }
   print("y_t+1 = Z*a_t + H")
@@ -120,25 +122,30 @@ Helske6.model <- function(usd,zsd) {
                                    model$H[2,2,1] > 0 &
                                    model$H[3,3,1] > 0 &
                                    model$H[4,4,1] > 0 &
-                                   model$Q[1,1,1] > 0
+                                   model$Q[1,1,1] > 0 &
+                                   model$Q[2,2,1] > 0 &
+                                   model$Q[3,3,1] > 0 &
+                                   model$Q[4,4,1] > 0
                                    )
   fit         <- fitSSM(model,
-                        inits    = rep(1,17),
+                        inits    = rep(0.1,32),
                         checkfn  = check_model,
                         updatefn = update_model,
                         method   = "BFGS")
   out         <- KFS(fit$model, transform = "augment")
   print(out$P[,,end])
   print(out$Pinf)
-
+browser()
   Out <- ts(data.frame(gold.v   = u,
                        gold.z   = z,
                        obs.v    = sqrt(data[,5]^2 + data[,6]^2),
                        obs.z    = sqrt(data[,7]^2 + data[,8]^2),
                        smooth.v = sqrt(out$muhat[,1]^2 + out$muhat[,3]^2),
                        smooth.z = sqrt(out$muhat[,2]^2 + out$muhat[,4]^2),
-                       prd.v    = sqrt(out$att[,1]^2 + out$att[,3]^2),
-                       prd.x    = sqrt(out$att[,2]^2 + out$att[,4]^2)
+                       prd.v    = sqrt((out$att[,1] + out$att[,5])^2 +
+                                         (out$att[,3] + out$att[,7])^2),
+                       prd.x    = sqrt((out$att[,2] + out$att[,6])^2 +
+                                         (out$att[,4] + out$att[,8])^2)
                        ),
                        start, end, frequency = 8)
   head(Out)
@@ -156,6 +163,7 @@ Helske6.model <- function(usd,zsd) {
           ylab = "x(t), feet", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
   title(main = "SSMcycle Location Model")
+
     p1 <- as.numeric(out$P[1,,][1,])
     p2 <- as.numeric(out$P[1,,][2,])
     plot(tseq, p1[-1], typ = "l", lwd = 2, ylim = c(0,max(c(p1,p2))), xlab = "Time", ylab = "P")
@@ -163,6 +171,6 @@ Helske6.model <- function(usd,zsd) {
     title(main = "Covariance")
   browser()
 
-
+  return(data)
   ########################################################################################
 }

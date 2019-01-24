@@ -1,79 +1,83 @@
-#' \code{Helske2.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.
+#' \code{Helske2.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.
 #'
-#' @param usd standard deviation of speed in mph, a number.
+#' @param df speed and location data, data.frame
 # #' @examples
-# #' Helske2.model(usd)
-#' @usage Helske2.model(usd)
+# #' Helske2.model(df)
+#' @usage Helske2.model(df)
 #' @export
-Helske2.model <- function(usd) {
-  set.seed(123)
-  Q0     <- 0
-  H      <- round(usd * 5280/3600,1) # Observation noise
-  u      <- 78
-  tseq   <- seq(0,40,0.125)
-  u.     <- rnorm(321, u, Q0)        # Gold Standard
-  x.     <- u * tseq - 700
-  u.r    <- rnorm(321, u, H)
-  x.r    <- rep(NA, length(tseq))
-  x.r[1] <- -700
-  for(i in 2:length(tseq)) x.r[i] <- x.r[i-1] + u.r[i] * 0.125
-  df     <- data.frame(u.gold = u., x.gold = x., z1 = u.r, z2 = x.r)
-
+Helske2.model <- function(df) {
+  df     <- df[,1:4]
   start  <- 0
   end    <- 40
+  u      <- 78
   data   <- ts(df, start, end, frequency = 8)
-
   model  <- SSModel(data[,c(3,4)] ~  -1 +
-                      SSMcustom(Z  = matrix(c(1,0.125,0,1),2,2),
-                                T  = matrix(c(1,0.125,0,1),2,2),
-                                R  = matrix(c(1,0.125/2),2,1),
-                                Q  = matrix(NA),
-                                P1inf = diag(2)
-        ),
-        H = matrix(c(NA,0,0,0),2,2),
-        distribution = "gaussian",
-        data = data,
-        tol  = .Machine$double.eps^0.5)
-  print("y_t+1 = Z*a_t + H")
-  print("Z")
-  print(model$Z)
-  print("H")
-  print(model$H)
-  print("a_t+1 = T*a_t + R*Q")
-  print("T")
-  print(model$T)
-  print("R")
-  print(model$R)
-  print("Q")
-  print(model$Q)
+                      SSMtrend(2, Q = list(matrix(NA,2,2), matrix(0,2,2))) +
+                      SSMcustom(Z  = matrix(c(1,0,1,0.125),2,2),
+                                T  = matrix(c(1,0,0,1),2,2),
+                                Q  = matrix(NA,2,2),
+                                P1 = matrix(NA,2,2)
+                      ),
+                    distribution = "gaussian",
+                    u = data[,3:4],
+                    tol  = .Machine$double.eps^0.5
+        )
 ###########################################################################################################
-
-  check_model  <- function(model) (model$H[1,1,1] > 0 &  model["Q"] > 0)
+  check_model  <- function(model) (  model$Q[1,1,1] > 0 &
+                                     model$Q[2,2,1] > 0 &
+                                     model$Q[3,3,1] > 0
+                                   )
   update_model <- function(pars, model) {
-    model$H[1,1,1] <- pars[1]
-    model["Q"]     <- pars[2]
+    browser()
+    Q               <- diag(pars[1:2])
+    Q[upper.tri(Q)] <- 0                                   # ?????????????????
+    model["Q", etas = "level"] <- crossprod(Q)
+    Q               <- pars[3]
+    model["Q", etas = "custom"] <- model["P1", states = "custom"] <- Q
+    print(model["Q"])
     model
   }
-  fit         <- fitSSM(model,
-                        updatefn = update_model,
-                        checkfn  = check_model,
-                        inits    = rep(10,2),
-                        method   = "BFGS")
+  browser()
+  init     <- chol(cov(data[,3:4]))
+  fitinit  <- fitSSM(model,
+                     updatefn = update_model,
+                     inits    = rep(c(diag(init), init[upper.tri(init)]),1),
+                     method   = "BFGS")
+  print(-fitinit$optim.out$val)
+  fit <- fitSSM(model,
+                updatefn = update_model,
+                inits = fitinit$optim.out$par,
+                method = "BFGS", nsim = 250)
+  print(-fitinit$optim.out$val)
+  varcor <- fit$model["Q", etas = "level"]
+  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
+  print(varcor, digits = 2)
+
+  varcor <- fit$model["Q", etas = "custom"]
+  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
+  print(varcor, digits = 2)
+  out <- KFS(fit$model, nsim = 1000)
+  print(out)
+
+  browser()
   out         <- KFS(fit$model, transform = "augment")
   print(out$P[,,end])
   print(out$Pinf)
 
   layout(mat = matrix(c(1,1,2,3),2,2), widths = c(3,1), height = c(3,1))
   par(mar = c(1,3,1,3), pty = "s")
-  Out <- ts(data.frame(df, smooth = out$muhat, prd = out$att), start, end, frequency = 8)
-  ts.plot(window(Out, start = c(0,1), end = c(10,0))[,c(1,3,5,7)],
+  print(head(data))
+  Out <- ts(data.frame(stand = data[,1], obs = data[,3], smooth = out$muhat, prd = out$att[,1] + 0.125 * out$att[,2]),
+            start, end, frequency = 8)
+
+  ts.plot(window(Out, start = c(0,1), end = c(40,0)),
           col = c("gold", gray(0.5), "black", "blue"),
-          ylim = c(u - 3.5*max(c(Q0,H)), u + 3.5*max(c(Q0,H))),
+          ylim = c(50,110),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
-  title(main = "SSMcustom Speed Model Predictions")
+  title(main = expression(dot(x)[t]))
   legend("bottomright",
-         legend = c("Gold Standard", "Observed", "One-step ahead", "Smoothed" ),
+         legend = c("Gold Standard", "Observed", "One-step ahead predictions", "Smoothed estimates" ),
          lty = c(1,3,1,1),
          lwd = c(6,2,2,2),
          col = c("gold", gray(0.5), "blue","black"),
@@ -82,18 +86,16 @@ Helske2.model <- function(usd) {
   legend("topleft",c(
     expression(""),
     bquote(bar(u) == .(u)),
-    bquote(sigma[w] == .(H))),
+    bquote(sigma[w] == .(usd))),
     bty = "n"
   )
-  ts.plot(window(Out, start = c(0,1), end = c(30,0))[,c(2,4,6,8)],
-          col = c("gold", gray(0.5), "black", "blue"),
-          ylim = c(-800,1500),
-          ylab = "x(t), feet", lty = c(1,3,1,1), lwd = c(6,2,2,2)
-  )
-  title(main = "Location Predictions")
-  Pout <- data.frame(out$P[2,,][1,], out$P[2,,][2,])
-  P  <- ts(Pout, start = c(0,1), end = c(10,1), frequency = 8)
-  ts.plot(window(P, start = c(0,1), end = c(3,0)), col = "black", ylab = "P", lwd = 2)
+
+  p1 <- as.numeric(out$P[1,,][1,])
+  p2 <- as.numeric(out$P[1,,][2,])
+  p3 <- as.numeric(out$P[1,,][3,])
+  plot(tseq, p1[-1], typ = "l", lwd = 2, ylim = c(0,max(c(p1,p2,p3))), xlab = "Time", ylab = "P")
+  lines(tseq,p2[-1], lwd = 2)
+  lines(tseq,p3[-1], lwd = 2)
   title(main = "Covariance")
 
   ### Notes

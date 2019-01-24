@@ -1,28 +1,23 @@
-#' \code{Helske3.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.
+#' \code{Helske3.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.
 #'
 #' @usage uses \code{Helske3.model} is used to filter noisy speed data.
-#' @param usd standard deviation of speed in mph, a number.
+#' @param df speed and location data, data.frame
 # #' @examples
-# #' Helske3.model()
+# #' Helske3.model(df)
 #' @export
-Helske3.model <- function(usd) {
-  set.seed(123)
-  Q0     <- 0
-  H      <- round(usd * 5280/3600,1) # Observation noise
-  u      <- 78
-  x      <- rnorm(321, u, Q0)        # Gold Standard
-  z      <- rnorm(321, x, H)
-  df     <- data.frame(x, z)
+Helske3.model <- function(df) {
+  df     <- df[,1:4]
   start  <- 0
   end    <- 40
+  u      <- round(53*5280/3600,0)
+  usd    <- round(5280/3600*usd,1)
   data   <- ts(df, start, end, frequency = 8)
-
-  model  <- SSModel(z ~  -1 +
-                      SSMcustom(Z  = matrix(c(1,0.125),1,2),
-                      T  = matrix(c(1,0,0,1),2,2),
-                      R  = matrix(c(1,0),2,1),
+  model  <- SSModel(data[,3] ~  -1 +
+                      SSMtrend(1, Q = NA) +
+                      SSMcustom(Z  = matrix(1,1,1),
+                      T  = matrix(1,1,1),
                       Q  = matrix(NA),
-                      P1 = diag(1,2,2)
+                      P1 = diag(1,1,1)
                       ),
                       H = NA,
                       distribution = "gaussian",
@@ -30,44 +25,32 @@ Helske3.model <- function(usd) {
                       tol  = .Machine$double.eps^0.5
                     )
 
-  print("y_t+1 = Z*a_t + H")
-  print("Z")
-  print(model$Z)
-  print("H")
-  print(model$H)
-  print("a_t+1 = T*a_t + R*Q")
-  print("T")
-  print(model$T)
-  print("R")
-  print(model$R)
-  print("Q")
-  print(model$Q)
-
-  check_model <- function(model) (model["H"]  > 0 &  model["Q"] > 0)
+  browser()
+  check_model <- function(model) (model["H"]  > 0 &
+                                    model["Q", etas = "level"] > 0
+                                  )
   fit         <- fitSSM(model,
-               #         updatefn = updatefn,
                         check_fn = check_model,
-                        inits    = rep(u/10,2),
+                        inits    = rep(u/10,3),
                         method   = "BFGS")
   out         <- KFS(fit$model)
   print(out$P[,,end])
 
-  layout(mat = matrix(c(1,1,2,0),2,2), widths = c(3,1), height = c(3,1))
-  par(mar = c(1,3,1,3), pty = "s")
+  par(mfrow = c(1,2),  pty = "s")
   print("Q and R")
   print(fit$optim.out[[1]])
   print("fit$optim.out")
   print(out)
-
-  Out <- ts(data.frame(stand = data[,1], obs = data[,2], smooth = out$muhat, prd = out$att[,1] + 0.125 * out$att[,2]),
+  print(head(data))
+  Out <- ts(data.frame(stand = data[,1], obs = data[,3], smooth = out$muhat, prd = out$att[,1] + 0.125 * out$att[,2]),
             start, end, frequency = 8)
 
-  ts.plot(window(Out, start = c(0,1), end = c(10,0)),
+  ts.plot(window(Out, start = c(0,1), end = c(40,0)),
           col = c("gold", gray(0.5), "black", "blue"),
-          ylim = c(u - 3.5*max(c(Q0,H)), u + 3.5*max(c(Q0,H))),
+          ylim = c(50,110),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
-  title(main = "SSMcustom Speed Model")
+  title(main = expression(dot(x)[t]))
   legend("bottomright",
          legend = c("Gold Standard", "Observed", "One-step ahead predictions", "Smoothed estimates" ),
          lty = c(1,3,1,1),
@@ -78,11 +61,16 @@ Helske3.model <- function(usd) {
   legend("topleft",c(
     expression(""),
     bquote(bar(u) == .(u)),
-    bquote(sigma[w] == .(H))),
+    bquote(sigma[w] == .(usd))),
     bty = "n"
   )
-  P  <- ts(out$P[1,,][1,], start, end, frequency = 8)
-  ts.plot(window(P, start = c(0,1), end = c(3,0)), col = "black", ylab = "P", lwd = 2)
+
+  p1 <- as.numeric(out$P[1,,][1,])
+  p2 <- as.numeric(out$P[1,,][2,])
+  tseq <- seq(start, end, 0.125)
+  plot(tseq, p1[-1], typ = "l", lwd = 2, ylim = c(0,max(c(p1,p2))), xlab = "Time", ylab = "P")
+  lines(tseq,p2[-1], lwd = 2)
+
   title(main = "Covariance")
 
   ### Notes
@@ -92,6 +80,5 @@ Helske3.model <- function(usd) {
   # 4. Covariance quickly reach steady state
   # 5. Use default updatefn.
 
-
-  return(list(model, fit, out, df))
+  browser()
 }

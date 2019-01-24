@@ -5,6 +5,101 @@
 # #' cartools.example(u,x)
 #' @export
 cartools.example <- function(u,x) {
+  data("alcohol")
+  start <- 1969
+  end   <- 2007
+  alcoholPred          <- window(alcohol, start, end)
+  par(mfrow = c(1,1), pty = "s")
+  ts.plot(alcohol[,1:2], lty = c(1,1), lwd = c(2,2), col = c("blue","red"), ylab = "deaths")
+  legend("topleft",  legend = colnames(alcohol)[1:2],
+         lty= c(1,1), lwd = c(2,2), col = c("blue","red"),
+         bty = "n")
+  model_alc_gauss2  <- SSModel(alcoholPred[,1:2] ~
+                                 SSMtrend(2, Q = list(matrix(NA,2,2), matrix(0,2,2))) +
+                                 SSMcustom(Z = diag(1,2),
+                                           T = diag(0,2),
+                                           Q = matrix(NA,2,2),
+                                           P1 = matrix(NA,2,2)),
+                               distribution = "gaussian",
+                               u = alcoholPred[,5:6])
+  browser()
+  updatefn <- function(pars, model, ...) {
+    browser()
+    Q               <- diag(pars[1:2])
+    Q[upper.tri(Q)] <- pars[3]
+    model["Q", etas = "level"] <- crossprod(Q)
+    Q <- diag(pars[4:5])
+    Q[upper.tri(Q)] <- pars[6]
+    model["Q", etas = "custom"] <- model["P1", states = "custom"] <- crossprod(Q)
+    model
+  }
+  init     <- chol(cov(alcoholPred[,1:2]))
+  fitinit  <- fitSSM(model_alc_gauss2, updatefn = updatefn,
+                     inits = rep(c(diag(init), init[upper.tri(init)]),2),
+                     method = "BFGS")
+  print(-fitinit$optim.out$val)
+  fit <- fitSSM(model_alc_gauss2, updatefn = updatefn,
+                inits = fitinit$optim.out$par,
+                method = "BFGS", nsim = 250)
+  print(-fitinit$optim.out$val)
+  varcor <- fit$model["Q", etas = "level"]
+  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
+  print(varcor, digits = 2)
+
+  varcor <- fit$model["Q", etas = "custom"]
+  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
+  print(varcor, digits = 2)
+  out <- KFS(fit$model, nsim = 1000)
+  print(out)
+  plot(coef(out, states = c("level", "custom")), main = "Smoothed states",yax.flip = TRUE)
+  res <- rstandard(KFS(fit$model))
+  acf(res, na.action = na.pass)
+  pred <- predict(fit$model,
+                  newdata <- SSModel(ts(matrix(NA,5,2), start = end) ~ -1 +
+                                       SSMcustom(Z = fit$model$Z,
+                                                 T = fit$model$T,
+                                                 R = fit$model$R,
+                                                 Q = fit$model$Q),
+                                     u = 1, distribution = "gaussian"),
+                  interval = "confidence", nsim = 10000)
+  trend <- signal(out, "trend")$signal
+  par(mfrow = c(1,1), pty = "s")
+  tseq  <- seq(tsp(alcohol)[1], tsp(alcohol)[2])
+  tseq1 <- seq(start,end)
+  tseq2 <- seq(end+1, end + 5)
+  plot(tseq, as.numeric(alcohol[,1]), typ = "n", col = gray(0.5),
+       xlab = NULL, ylab = "deaths", lwd = 2, ylim = c(0, 700),
+       main = "Alcohol Deaths in Finland")
+  for(i in 1:2) {
+    if(i == 1) {
+      points(tseq, as.numeric(alcohol[,1]), col = "blue")
+      lines(tseq1, as.numeric(trend[,1]), lwd = 2, col = "blue")
+      lines(tseq2, as.numeric(pred[[1]][,1]), col = "black", lwd = 3, lty = 1)
+      lines(tseq2, as.numeric(pred[[1]][,2]), col = "black", lwd = 2, lty = 3)
+      lines(tseq2, as.numeric(pred[[1]][,3]), col = "black", lwd = 2, lty = 3)
+    } else {
+      points(tseq, as.numeric(alcohol[,2]), col = "red")
+      lines(tseq1, as.numeric(trend[,2]), lwd = 2, col = "red")
+      lines(tseq2, as.numeric(pred[[2]][,1]), col = "black", lwd = 3, lty = 1)
+      lines(tseq2, as.numeric(pred[[2]][,2]), col = "black", lwd = 2, lty = 3)
+      lines(tseq2, as.numeric(pred[[2]][,3]), col = "black", lwd = 2, lty = 3)
+    }
+    legend("topleft",
+           legend = c(
+             paste(colnames(alcohol)[1],sep="", " data"),
+             paste(colnames(alcohol)[2],sep="", " data"),
+             "filtered", "predictions", "95% C.I."
+           ),
+           pch = c(1,1,NA,NA,NA),
+           lty = c(NA,NA,1,1,3),
+           lwd = c(NA,NA,2,3,2),
+           col = c("blue","red", "black", "black", "black"),
+           bty = "n")
+  }
+  browser()
+
+
+  ############################################################
 
   ### Gyro y_t = Z_t*alpha_t + epsilon; epsilon ~ N(0, sigma_epsilon^2)
   ### alpha = T_t*mu + R_t*nu, Q ~ N(0, sigma_nu^2)
@@ -82,95 +177,7 @@ cartools.example <- function(u,x) {
   browser()
 
 ############################################################
-  data("alcohol")
-  start <- 1969
-  end   <- 2007
-  alcoholPred          <- window(alcohol, start, end)
-  par(mfrow = c(1,1), pty = "s")
-  ts.plot(alcohol[,1:2], lty = c(1,1), lwd = c(2,2), col = c("blue","red"), ylab = "deaths")
-  legend("topleft",  legend = colnames(alcohol)[1:2],
-         lty= c(1,1), lwd = c(2,2), col = c("blue","red"),
-         bty = "n")
-  model_alc_gauss2  <- SSModel(alcoholPred[,1:2] ~
-                              SSMtrend(2, Q = list(matrix(NA,2,2), matrix(0,2,2))) +
-                              SSMcustom(Z = diag(1,2), T = diag(0,2), Q = matrix(NA,2,2),
-                                           P1 = matrix(NA,2,2)),
-                              distribution = "gaussian",
-                              u = alcoholPred[,5:6])
-  browser()
-  updatefn <- function(pars, model, ...) {
-    Q <- diag(pars[1:2])
-    Q[upper.tri(Q)] <- pars[3]
-    model["Q", etas = "level"] <- crossprod(Q)
-    Q <- diag(pars[4:5])
-    Q[upper.tri(Q)] <- pars[6]
-    model["Q", etas = "custom"] <- model["P1", states = "custom"] <- crossprod(Q)
-    model
-  }
-  init     <- chol(cov(alcoholPred[,1:2]))
-  fitinit  <- fitSSM(model_alc_gauss2, updatefn = updatefn,
-                     inits = rep(c(diag(init), init[upper.tri(init)]),2),
-                     method = "BFGS")
-  print(-fitinit$optim.out$val)
-  fit <- fitSSM(model_alc_gauss2, updatefn = updatefn,
-                inits = fitinit$optim.out$par,
-                method = "BFGS", nsim = 250)
-  print(-fitinit$optim.out$val)
-  varcor <- fit$model["Q", etas = "level"]
-  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
-  print(varcor, digits = 2)
 
-  varcor <- fit$model["Q", etas = "custom"]
-  varcor[upper.tri(varcor)] <- cov2cor(varcor)[upper.tri(varcor)]
-  print(varcor, digits = 2)
-  out <- KFS(fit$model, nsim = 1000)
-  print(out)
-  plot(coef(out, states = c("level", "custom")), main = "Smoothed states",yax.flip = TRUE)
-  res <- rstandard(KFS(fit$model))
-  acf(res, na.action = na.pass)
-  pred <- predict(fit$model,
-                  newdata <- SSModel(ts(matrix(NA,5,2), start = end) ~ -1 +
-                            SSMcustom(Z = fit$model$Z, T = fit$model$T, R = fit$model$R, Q = fit$model$Q),
-                                     u = 1, distribution = "gaussian"),
-                  interval = "confidence", nsim = 10000)
-  trend <- signal(out, "trend")$signal
-  par(mfrow = c(1,1), pty = "s")
-  tseq  <- seq(tsp(alcohol)[1], tsp(alcohol)[2])
-  tseq1 <- seq(start,end)
-  tseq2 <- seq(end+1, end + 5)
-  plot(tseq, as.numeric(alcohol[,1]), typ = "n", col = gray(0.5),
-       xlab = NULL, ylab = "deaths", lwd = 2, ylim = c(0, 700),
-       main = "Alcohol Deaths in Finland")
-  for(i in 1:2) {
-    if(i == 1) {
-      points(tseq, as.numeric(alcohol[,1]), col = "blue")
-      lines(tseq1, as.numeric(trend[,1]), lwd = 2, col = "blue")
-      lines(tseq2, as.numeric(pred[[1]][,1]), col = "black", lwd = 3, lty = 1)
-      lines(tseq2, as.numeric(pred[[1]][,2]), col = "black", lwd = 2, lty = 3)
-      lines(tseq2, as.numeric(pred[[1]][,3]), col = "black", lwd = 2, lty = 3)
-    } else {
-      points(tseq, as.numeric(alcohol[,2]), col = "red")
-      lines(tseq1, as.numeric(trend[,2]), lwd = 2, col = "red")
-      lines(tseq2, as.numeric(pred[[2]][,1]), col = "black", lwd = 3, lty = 1)
-      lines(tseq2, as.numeric(pred[[2]][,2]), col = "black", lwd = 2, lty = 3)
-      lines(tseq2, as.numeric(pred[[2]][,3]), col = "black", lwd = 2, lty = 3)
-    }
-    legend("topleft",
-           legend = c(
-             paste(colnames(alcohol)[1],sep="", " data"),
-             paste(colnames(alcohol)[2],sep="", " data"),
-             "filtered", "predictions", "95% C.I."
-             ),
-           pch = c(1,1,NA,NA,NA),
-           lty = c(NA,NA,1,1,3),
-           lwd = c(NA,NA,2,3,2),
-           col = c("blue","red", "black", "black", "black"),
-           bty = "n")
-  }
-  browser()
-
-
-############################################################
   data("alcohol")
   alcoholPred          <- window(alcohol, start = 1969, end = 2007)
   par(mfrow = c(1,1), pty = "s")

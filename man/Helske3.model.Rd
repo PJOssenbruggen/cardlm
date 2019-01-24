@@ -2,13 +2,13 @@
 % Please edit documentation in R/Helske3.model.R
 \name{Helske3.model}
 \alias{Helske3.model}
-\title{\code{Helske3.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.}
+\title{\code{Helske3.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.}
 \usage{
 uses \code{Helske3.model} is used to filter noisy speed data.
 }
 \arguments{
-\item{usd}{standard deviation of speed in mph, a number.}
+\item{df}{speed and location data, data.frame}
 }
 \description{
-\code{Helske3.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.
+\code{Helske3.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.
 }

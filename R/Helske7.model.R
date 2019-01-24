@@ -66,26 +66,29 @@ Helske7.model <- function(usd,zsd) {
   print("Q")
   print(model$Q)
   update_model <- function(pars, model) {
-    model["H"] <- pars[1:4]
-    Q          <- diag(exp(pars[5:6]))
-    Q[upper.tri(Q)] <- pars[7:8]
-    model["Q"] <- crossprod(Q)
+    print(pars)
+    H               <- diag(pars[c(1,4)])
+    H[1,2]          <- H[2,1] <- min(c(H[1,1], H[2,2]))
+    model["H"]      <- ldl(H)
+    Q               <- diag(exp(pars[c(5,8)]))
+    Q[upper.tri(Q)] <- pars[c(7)]
+    model["Q"]      <- crossprod(Q)
     model
   }
   check_model  <- function(model) (  model$H[1,1,1] > 0 &
                                      model$H[2,2,1] > 0 &
                                      model$Q[1,1,1] > 0 &
                                      model$Q[2,2,1] > 0
-                                    )
+  )
   fit         <- fitSSM(model,
-                        inits    = rep(0.1,8),
+                        inits    = seq(1,8)/10,
                         checkfn  = check_model,
                         updatefn = update_model,
                         method   = "BFGS")
+  browser()
   out         <- KFS(fit$model, transform = "augment")
   print(out$P[,,end])
   print(out$Pinf)
-
   Out <- ts(data.frame(df[,-1],
                        smooth.v = out$muhat[,1],
                        smooth.z = out$muhat[,2],
@@ -94,14 +97,16 @@ Helske7.model <- function(usd,zsd) {
                        ),
             start, end, frequency = 8)
 
-  ts.plot(window(Out, start = c(20,1), end = c(25,1))[,c(1,3,5,7)],
+  ts.plot(window(Out, start = c(0,1), end = c(40,1))[,c(1,3,5,7)],
           col = c("gold", gray(0.5), "black", "blue"),
+          ylim = c(60,100),
           ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
   title(main = "Speed Predictions")
 
-  ts.plot(window(Out, start = c(20,1), end = c(25,1))[,c(2,4,6,8)],
+  ts.plot(window(Out, start = c(0,1), end = c(40,1))[,c(2,4,6,8)],
           col = c("gold", gray(0.5), "black", "blue"),
+          ylim = c(-1000, 3000),
           ylab = "x(t), feet", lty = c(1,3,1,1), lwd = c(6,2,2,2)
   )
   title(main = "Location Predictions")
@@ -115,5 +120,6 @@ Helske7.model <- function(usd,zsd) {
   # 2. Added transform = "augment" to KFS.
   # 3. H, a 2x2 matrix, has only one unknown parameters.
   # 4. Q is a 2x2 matrix, which is updated
-  return(df)
+  browser()
+  return(list(model, model$Z, model$H, model$T, model$R, model$Q, model$a1, model$P1, model$P1inf))
 }

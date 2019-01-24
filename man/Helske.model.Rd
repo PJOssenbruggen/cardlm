@@ -2,13 +2,13 @@
 % Please edit documentation in R/Helske.model.R
 \name{Helske.model}
 \alias{Helske.model}
-\title{\code{Helske.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.}
+\title{\code{Helske.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMtrend}.}
 \usage{
-Helske.model(usd)
+Helske.model(df)
 }
 \arguments{
-\item{usd}{standard deviation of speed in mph, a number.}
+\item{df}{speed and location data, data.frame}
 }
 \description{
-\code{Helske.model} is a wrapper function for estimating a successful, safe merge. Mean speed = 53 mph = 78 fps.
+\code{Helske.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMtrend}.
 }

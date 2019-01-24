@@ -95,8 +95,6 @@ Helske4.model <- function(usd,zsd) {
   lines(tseq,p2[-1], lwd = 2)
   title(main = "Covariance")
 
-
-
 ########################################################################################
   if(FALSE) {
     model  <- SSModel(data[,c(3,4,5,6)] ~  -1 +

@@ -2,17 +2,13 @@
 % Please edit documentation in R/Helske5.model.R
 \name{Helske5.model}
 \alias{Helske5.model}
-\title{\code{Helske5.model} is a wrapper function ring road experiment}
+\title{\code{Helske5.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.}
 \usage{
-uses \code{Helske4.model} is an extension of \code{Helske} models 1, 2 and 3
+uses \code{Helske3.model} code.
 }
 \arguments{
-\item{usd}{standard deviation of speed in mph, a number.}
-
-\item{zsd}{standard deviation of measuring location, a number.}
-
-\item{veh, }{a number}
+\item{tdf1df2}{speed and location data, data.frame}
 }
 \description{
-\code{Helske5.model} is a wrapper function ring road experiment
+\code{Helske5.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.
 }
