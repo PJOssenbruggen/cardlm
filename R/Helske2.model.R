@@ -6,6 +6,7 @@
 #' @usage Helske2.model(df)
 #' @export
 Helske2.model <- function(df) {
+
   df     <- df[,1:4]
   start  <- 0
   end    <- 40

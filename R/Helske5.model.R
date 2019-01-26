@@ -19,7 +19,7 @@ Helske5.model <- function(tdf1df2) {
   acf(diff(data[,1]))
 
   model  <- SSModel(data[,1] ~
-                      SSMtrend(degree = 3, index = 1, Q = list(matrix(NA,1,1), matrix(0,1,1),
+                    SSMtrend(degree = 3, index = 1, Q = list(matrix(NA,1,1), matrix(0,1,1),
                                                                matrix(NA,1,1), matrix(0,1,1),
                                                                matrix(NA,1,1), matrix(0,1,1)
                                                                )),

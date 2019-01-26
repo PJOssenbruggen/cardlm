@@ -1,7 +1,6 @@
 
-#' \code{Helske8.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.
+#' \code{Helske8.model} is a wrapper for learning how to fit \code{SSMarima} models.
 #'
-#' @usage uses \code{Helske3.model} code.
 #' @param tdf1df2 speed and location data, data.frame
 # #' @examples
 # #' Helske8.model(tdf1df2)
@@ -15,14 +14,13 @@ Helske8.model <- function(tdf1df2) {
   data   <- ts(df, start, end, frequency = 8)
 
   ### SSMcustom Finland_____________________________________________________
-  if(TRUE) {
-    browser()
+  if(FALSE) {
     data("alcohol", package = "KFAS")
     deaths <- window(alcohol[, 2], end = 2007)
     population <- window(alcohol[, 6], end = 2007)
     y     <- deaths/population
     u     <- rep(NA,length(deaths))
-    par(mfrow = c(1,1), pty = "s")
+    par(mfrow = c(1,2), pty = "s")
     model <- SSModel(deaths/population ~ -1 + SSMcustom(
       Z = matrix(c(1,0),1,2),
       T = matrix(c(1,0,1,1),2,2),
@@ -35,9 +33,10 @@ Helske8.model <- function(tdf1df2) {
       H = NA)
     fit   <- fitSSM(model, inits = c(0,0), method = "BFGS")
     out   <- KFS(fit$model)
-    Out <- ts(data.frame(u, obs = y,
-                         smooth = out$muhat,
-                         prd = rowSums(out$att)),
+    Out   <- ts(data.frame(u, obs = y,
+                         smooth = signal(out)$signal,
+                         prd = signal(out,filtered = TRUE)$signal
+                         ),
               start = 1969, end = 2007, frequency = 1)
 
     ts.plot(window(Out, start = 1969, end = 2007),
@@ -45,7 +44,7 @@ Helske8.model <- function(tdf1df2) {
             ylim = c(0,60),
             ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
     )
-    title(main = expression(dot(x)[t]))
+    title(main = expression("death/population, "*dot(x)[t]))
     legend("bottomright",
            legend = c("Target", "Observed", "One-step ahead predictions", "Smoothed estimates" ),
            lty = c(1,3,1,1),
@@ -58,8 +57,7 @@ Helske8.model <- function(tdf1df2) {
     browser()
   }
   ### SSMarima Finland______________________________________________________
-  if(TRUE) {
-    browser()
+  if(FALSE) {
     data("alcohol", package = "KFAS")
     deaths <- window(alcohol[, 2], end = 2007)
     population <- window(alcohol[, 6], end = 2007)
@@ -67,11 +65,11 @@ Helske8.model <- function(tdf1df2) {
     u     <- rep(NA,length(deaths))
     drift <- 1:length(deaths)
     model_arima <- SSModel(deaths / population ~ drift +
-                                +    SSMarima(ma = 0, d = 1, Q = 1))
+                                + SSMarima(ma = 0, d = 1, Q = 1))
     update_model <- function(pars, model) {
           tmp <- SSMarima(ma = pars[1], d = 1, Q = pars[2])
-          model["R", states = "arima"] <- tmp$R
-          model["Q", states = "arima"] <- tmp$Q
+          model["R", states = "arima"]  <- tmp$R
+          model["Q", states = "arima"]  <- tmp$Q
           model["P1", states = "arima"] <- tmp$P1
           model
       }
@@ -80,61 +78,86 @@ Helske8.model <- function(tdf1df2) {
                         method = "L-BFGS-B", lower = c(-1, 0), upper = c(1, 100))
     fit_arima$optim.out$par
     out_arima <- KFS(fit_arima$model)
-    Out <- ts(data.frame(u, obs = y,
-                         smooth = out_arima$muhat,
-                         prd = rowSums(out_arima$att)),
-              start = 1969, end = 2007, frequency = 1)
-
+    out_arima$logLik
+    Out   <- ts(data.frame(u, obs = y,
+                           smooth = signal(out_arima)$signal,
+                           prd = signal(out_arima,filtered = TRUE)$signal
+                          ),
+                          start = 1969, end = 2007, frequency = 1)
     ts.plot(window(Out, start = 1969, end = 2007),
             col = c("yellow",gray(0.5), "black", "blue"),
             ylim = c(0,60),
             ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
     )
-    title(main = expression(dot(x)[t]))
+    title(main = expression("Arima, "*dot(x)[t]))
     legend("bottomright",
            legend = c("Target", "Observed", "One-step ahead predictions", "Smoothed estimates" ),
            lty = c(1,3,1,1),
            lwd = c(6,2,2,2),
            col = c("gold", gray(0.5), "blue","black"),
            bty = "n")
-    print(model_arima$T)
-    print(model_arima$R)
-    print(model_arima$Q)
     browser()
   }
   ### SSMarima y simulated__________________________________________________
-  if(FALSE) {
+  if(TRUE) {
     y      <- arima.sim(n = 321, list(ar = c(0.8897, -0.4858), ma = c(-0.2279, 0.2488)),
                         innov = rnorm(1000) * sqrt(0.5))
     y      <- ts(as.numeric(y), start, end, frequency = 8)
     u      <- mean(y)
-    par(mfrow = c(1,1), pty = "s")
+    par(mfrow = c(2,2), pty = "s")
     acf(y)
-
     drift <- 1:length(y)
     model_arima <- SSModel(y ~ drift +
-                             SSMarima(ar = c(0, 0), d = 0, ma = c(0, 0), Q = matrix(NA,1,1)),
-                           H = NA)
+                             SSMarima(ar = c(0, 0), d = 0, ma = c(0, 0), Q = 1)
+                           )
     update_model <- function(pars, model) {
-      browser()
-      tmp <- SSMarima(ma = pars[2], d = 0, Q = pars[2])
+      tmp <- SSMarima(ma = artransform(pars[1:2]),
+                      d = 0,
+                      ar = artransform(pars[3:4]),
+                      Q = exp(pars[5]))
+      model["T", states = "arima"] <- tmp$T
       model["R", states = "arima"] <- tmp$R
       model["Q", states = "arima"] <- tmp$Q
       model["P1",states = "arima"] <- tmp$P1
       model
     }
-
-    browser()
-    fit_arima <- fitSSM(model_arima, inits = rep(1,10), updatefn = update_model,
+    fit_arima <- fitSSM(model_arima, inits = rep(1,5), updatefn = update_model,
                         method = "L-BFGS-B", lower = c(-1, 0), upper = c(1, 100))
     print(fit_arima$optim.out$par)
     out_arima <- KFS(fit_arima$model)
-    print(out_arima)
+    Out   <- ts(data.frame(u, obs = y,
+                           smooth = signal(out_arima)$signal,
+                           prd = signal(out_arima,filtered = TRUE)$signal
+              ), start = 1969, end = 2007, frequency = 1)
+    ts.plot(window(Out, start = 1969, end = 2007),
+            col = c("yellow",gray(0.5), "black", "blue"),
+            ylim = c(-20,10),
+            ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
+    )
+    title(main = expression("Arima, "*dot(x)[t]))
+    legend("bottomright",
+           legend = c("Target", "Observed", "One-step ahead predictions", "Smoothed estimates" ),
+           lty = c(1,3,1,1),
+           lwd = c(6,2,2,2),
+           col = c("gold", gray(0.5), "blue","black"),
+           bty = "n")
+    browser()
   }
   ### SSMarima y simulated acf agree _______________________________________
-  if(FALSE) {
+  if(TRUE) {
+    y      <- arima.sim(n = 321, list(ar = c(0.8897, -0.4858), ma = c(-0.2279, 0.2488)),
+                        innov = rnorm(1000) * sqrt(0.5))
+    y      <- ts(as.numeric(y), start, end, frequency = 8)
+    u      <- mean(y)
+
+    acf(y)
+    drift <- 1:length(y)
+    model_arima <- SSModel(y ~ drift +
+                             SSMarima(ar = c(0, 0), d = 0, ma = c(0, 0), Q = 1)
+    )
     likfn <- function(pars, model, estimate = TRUE){
-      tmp <- try(SSMarima(artransform(pars[1:2]), d = 0, artransform(pars[3:4]),
+      tmp <- try(SSMarima(artransform(pars[1:2]), d = 0,
+                          artransform(pars[3:4]),
                           Q = exp(pars[5])), silent = TRUE)
       if(!inherits(tmp, "try-error")){
         model["T", "arima"]  <- tmp$T
@@ -154,37 +177,24 @@ Helske8.model <- function(tdf1df2) {
                        model = model_arima)
     print(fit_arima$par)
     model_arima <- likfn(fit_arima$par, model_arima, FALSE)
-    attributes(model_arima)
-    out <- KFS(model_arima)
-    attributes(out)
+    out   <- KFS(model_arima)
+    Out   <- ts(data.frame(u, obs = y,
+                           smooth = signal(out)$signal,
+                           prd    = signal(out,filtered = TRUE)$signal
+    ), start = 1969, end = 2007, frequency = 1)
+    ts.plot(window(Out, start = 1969, end = 2007),
+            col = c("yellow",gray(0.5), "black", "blue"),
+            ylim = c(-20,10),
+            ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
+    )
+    title(main = expression("Arima, "*dot(x)[t]))
+    legend("bottomright",
+           legend = c("Target", "Observed", "One-step ahead predictions", "Smoothed estimates" ),
+           lty = c(1,3,1,1),
+           lwd = c(6,2,2,2),
+           col = c("gold", gray(0.5), "blue","black"),
+           bty = "n")
     browser()
+
   }
-
-
-  Out <- ts(data.frame(u, obs = y,
-                       smooth = out_arima$muhat,
-                       prd = fitted(out_arima)),
-            start, end, frequency = 8)
-
-  ts.plot(window(Out, start = c(0,1), end = c(40,0)),
-          col = c("yellow",gray(0.5), "black", "blue"),
-          ylim = c(0,100),
-          ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
-  )
-  title(main = expression(dot(x)[t]))
-  legend("bottomright",
-         legend = c("Target", "Observed", "One-step ahead predictions", "Smoothed estimates" ),
-         lty = c(1,3,1,1),
-         lwd = c(6,2,2,2),
-         col = c("gold", gray(0.5), "blue","black"),
-         bty = "n")
-
-  print(model_arima$T)
-  print(model_arima$R)
-  print(model_arima$Q)
-
-  print(arima(y, c(2, 0, 2)))
-
-
-
 }

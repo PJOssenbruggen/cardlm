@@ -58,19 +58,9 @@ Helske4.model <- function(usd,zsd) {
     model["Q"] <- pars[2:3]
     model
   }
-  print("y_t+1 = Z*a_t + H")
-  print("Z")
-  print(model$Z)
-  print("H")
-  print(model$H)
-  print("a_t+1 = T*a_t + R*Q")
-  print("T")
-  print(model$T)
-  print("R")
-  print(model$R)
-  print("Q")
-  print(model$Q)
-  check_model  <- function(model) (model["H"] > 0 & model$Q[1,1,1] > 0 & model$Q[2,2,1] > 0)
+  check_model  <- function(model) (model["H"] > 0 &
+                                     model$Q[1,1,1] > 0 &
+                                     model$Q[2,2,1] > 0)
   fit         <- fitSSM(model,
                         inits    = rep(0.1,3),
                         checkfn  = check_model,

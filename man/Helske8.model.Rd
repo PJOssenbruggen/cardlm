@@ -2,13 +2,13 @@
 % Please edit documentation in R/Helske8.model.R
 \name{Helske8.model}
 \alias{Helske8.model}
-\title{\code{Helske8.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.}
+\title{\code{Helske8.model} is a wrapper for learning how to fit \code{SSMarima} models.}
 \usage{
-uses \code{Helske3.model} code.
+Helske8.model(tdf1df2)
 }
 \arguments{
 \item{tdf1df2}{speed and location data, data.frame}
 }
 \description{
-\code{Helske8.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMcustom}.
+\code{Helske8.model} is a wrapper for learning how to fit \code{SSMarima} models.
 }

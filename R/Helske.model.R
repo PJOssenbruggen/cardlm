@@ -12,54 +12,46 @@ Helske.model <- function(df) {
   u      <- round(53*5280/3600,0)
   usd    <- round(5280/3600*usd,1)
   data   <- ts(df, start, end, frequency = 8)
-  model  <- SSModel(data[,3] ~ SSMtrend(1, Q = NA), H = NA, data = data)
-  fit    <- fitSSM(model, inits = c(0,0), method = "BFGS")
-  out    <- KFS(fit$model)
-  print(out)
-  Q      <- fit$optim.out[[1]][1]
-  H      <- fit$optim.out[[1]][2]
-  df.est <- data.frame(Q,H)
-  model.cal <- SSModel(data[,3] ~ SSMtrend(1, Q = fit$optim.out[[1]][1]), H = fit$optim.out[[1]][2], data = data)
-  predict(model.cal, interval = "prediction", se.fit = TRUE, level = 0.95, n.ahead = 2)
- ######################################################################################
-  model2  <- SSModel(data[,4] ~ SSMtrend(1, Q = NA), H = NA, data = data)
-  fit2    <- fitSSM(model2, inits = c(0,0), method = "BFGS")
-  out2    <- KFS(fit2$model)
-  print(out2)
-  Q       <- fit2$optim.out[[1]][1]
-  H       <- fit2$optim.out[[1]][2]
-  df.est  <- rbind(df.est, data.frame(Q,H))
+  par(mfrow = c(1,2), pty = "s")
+  model  <- SSModel(window(data[,3], start = c(0,1), end = c(39,0)) ~
+                      SSMtrend(1, Q = NA), H = NA, data = data)
+  update_model <- function(pars, model) {
+    model["H"] <- pars[1]
+    model["Q"] <- pars[2]
+    model
+  }
+  check_model  <- function(model) (model["H"] > 0 &
+                                     model$Q[1,1,1] > 0)
+  fit         <- fitSSM(model,
+                        inits    = rep(0.1,3),
+                        checkfn  = check_model,
+                        updatefn = update_model,
+                        method   = "BFGS")
+  out         <- KFS(fit$model)
+  Q           <- fit$optim.out[[1]][1]
+  H           <- fit$optim.out[[1]][2]
+  df.est      <- data.frame(Q,H)
   print(df.est)
-
-########################################################################################
-
-
-#########################################################################################
-  browser()
-  Out <- ts(data.frame(gold.v   = df[,1],
-                       gold.z   = df[,2],
-                       obs.v    = df[,3],
-                       obs.z    = df[,4],
-                       smooth.v = out$att,
-                       smooth.z = out2$att,
-                       prd.v    = out$muhat,
-                       prd.x    = out2$muhat),
-            start, end, frequency = 8)
-  print(head(Out))
-
-  layout(mat = matrix(c(1,1,2,3),2,2), widths = c(3,3), height = c(3,3))
-
-  ts.plot(window(Out, start = c(0,1), end = c(40,1))[,c(1,3,5,7)],
-          col = c("gold", gray(0.5), "black", "blue"),
-          ylab = "u(t), feet per second", lty = c(1,3,1,1), lwd = c(6,2,2,2)
+  pred  <- predict(fit$model, interval = "prediction",
+                    se.fit = TRUE, level = 0.95, n.ahead = 8)
+  Out   <- cbind(gold.v = data[,1],
+                       obs.v    = data[,3],
+                       smooth.v = signal(out,filtered = TRUE)[[1]],
+                       prd.v    = signal(out)[[1]],
+                       pred     = pred[,1:3]
+                      )
+  ts.plot(window(Out, start = c(0,1), end = c(40,1)),
+          col = c("gold", gray(0.5), "black", "blue", "red","red","red"),
+          ylab = "u(t), feet per second",
+          lty = c(1,3,1,1,1,2,2),
+          lwd = c(6,2,2,2,4,2,2)
   )
-
   title(main = expression(dot(x)[t]))
-  legend("bottomright",
-         legend = c("Gold Standard", "Observed", "One-step ahead predictions", "Smoothed predictions" ),
-         lty = c(1,3,1,1),
-         lwd = c(6,2,2,2),
-         col = c("gold", gray(0.5), "blue","black"),
+  legend("bottom",
+         legend = c("Target", "Observed", "Filtered state", "Signal","Prediction","95% prediction interval" ),
+         lty = c(1,3,1,1,1,3),
+         lwd = c(6,2,2,2,4,2,2),
+         col = c("gold", gray(0.5), "blue","black","red","red","red"),
          bty = "n")
 
   legend("topleft",c(
@@ -68,41 +60,45 @@ Helske.model <- function(df) {
     bquote(sigma[epsilon] == .(usd))),
     bty = "n"
   )
+  browser()
+ ######################################################################################
 
+  model  <- SSModel(window(data[,4], start = c(0,1), end = c(39,1)) ~
+                           SSMtrend(1, Q = NA), H = NA, data = data)
+  update_model <- function(pars, model) {
+  model["H"] <- pars[1]
+  model["Q"] <- pars[2]
+  model
+  }
+  check_model  <- function(model) (model["H"] > 0 &
+                                   model$Q[1,1,1] > 0)
+  fit         <- fitSSM(model,
+                      inits    = rep(0.1,3),
+                      checkfn  = check_model,
+                      updatefn = update_model,
+                      method   = "BFGS")
+  out         <- KFS(fit$model)
+  Q           <- fit$optim.out[[1]][1]
+  H           <- fit$optim.out[[1]][2]
+  df.est      <- data.frame(Q,H)
+  print(df.est)
+  pred  <- predict(fit$model, interval = "prediction",
+                 se.fit = TRUE, level = 0.95, n.ahead = 8)
 
-  ts.plot(window(Out, start = c(0,1), end = c(2,1))[,c(2,4,6,8)],
-          col = c("gold", gray(0.5), "black", "blue"),
-          ylab = "x(t), feet", lty = c(1,3,1,1), lwd = c(6,2,2,2)
+  Out   <- cbind(gold.v = data[,2],
+               obs.v    = data[,4],
+               smooth.v = signal(out,filtered = TRUE)[[1]],
+               prd.v    = signal(out)[[1]],
+               pred     = pred[,1:3]
+  )
+
+  ts.plot(window(Out, start = c(39,1), end = c(40,1)),
+          ylim = c(2900,3200),
+          col = c("gold", gray(0.5), "black", "blue", "red","red","red"),
+          ylab = "u(t), feet per second",
+          lty = c(1,3,1,1,1,2,2),
+          lwd = c(6,2,2,2,4,2,2)
   )
   title(main = expression(x[t]))
-  legend("topleft",
-         legend = c("Gold Standard", "Observed", "One-step ahead predictions", "Smoothed predictions" ),
-         lty = c(1,3,1,1),
-         lwd = c(6,2,2,2),
-         col = c("gold", gray(0.5), "blue","black"),
-         bty = "n")
-
-  Out2 <- ts(data.frame(gold.v   = out$P[1,,], gold.z   = out2$P[1,,]),
-                     start, end, frequency = 8)
-
-  ts.plot(window(Out2, start = c(0,1), end = c(40,1))[,c(1,2)],
-          col = c("black", "blue"),
-          ylab = "P", lty = c(1,1), lwd = c(2,2)
-  )
-  title(main = "Covariance")
-  legend("right",
-         legend = c("Speed", "Location" ),
-         lty = c(1,1),
-         lwd = c(2,2),
-         col = c("black","blue"),
-         bty = "n")
-
-  ### Notes
-  # 1. u = 53 mph = 78 fps = speed
-  # 2. Q = 0 Here, the goal is to reach u = 50
-  # 3. tracks well for all usd
-  # 4. Covariance quickly reach steady state.
-
-  browser()
-
+browser()
 }
