@@ -3,7 +3,7 @@
 #' @param usd standard deviation of speed in mph, a number.
 #' @param zsd standard deviation of measuring location, a number.
 # #' @examples
-# #' RingRoaddata(usd)
+# #'
 #' @export
 RingRoaddata <- function(usd,zsd) {
   set.seed(123)

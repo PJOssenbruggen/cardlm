@@ -98,7 +98,9 @@ control2.model <- function(tdf1df11) {
                      SSMcustom(Z = matrix(c(1, 0), 1, 2),
                                T = array(diag(2), c(2, 2, nrow(data))),
                                Q = array(0, c(2, 2, nrow(data))),
-                               P1inf = diag(2), P1 = diag(0, 2)), data = data)
+                               P1inf = diag(2),
+                               P1 = diag(0, 2)),
+                   data = data)
   model$T[1, 2, ] <- c(diff(data[,3]), 1)
   model$Q[1, 1, ] <- c(diff(data[,3]), 1)^3/3
   model$Q[1, 2, ] <- model$Q[2, 1, ] <- c(diff(data[,3]), 1)^2/2

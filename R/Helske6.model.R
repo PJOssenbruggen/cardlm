@@ -5,7 +5,7 @@
 #' @usage uses \code{Helske4.model} is an extension of \code{Helske} models 1, 2 and 3
 #' @param veh, a number
 # #' @examples
-# #' Helske6.model(usd)
+# #' Helske6.model(usd,zsd)
 #' @export
 Helske6.model <- function(usd,zsd) {
   set.seed(123)

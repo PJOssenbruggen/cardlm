@@ -29,7 +29,7 @@ Helske2.model <- function(df) {
                                      model$Q[3,3,1] > 0
                                    )
   update_model <- function(pars, model) {
-    browser()
+
     Q               <- diag(pars[1:2])
     Q[upper.tri(Q)] <- 0                                   # ?????????????????
     model["Q", etas = "level"] <- crossprod(Q)
