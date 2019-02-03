@@ -40,7 +40,7 @@ Helske10.model <- function(tdf1df2) {
   fit     <- fitSSM(model, inits = c(0,0), checkfn = check_model, method = "BFGS")
   out     <- KFS(fit$model)
 
-  Out <- ts(data.frame(stand = rep(NA,321),
+  Out <- ts(data.frame(stand = rep(u,321),
                        obs = data[,1],
                        smooth = signal(out)$signal[[1]],
                        prd    = signal(out,filtered = TRUE)$signal),

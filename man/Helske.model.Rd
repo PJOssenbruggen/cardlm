@@ -4,10 +4,10 @@
 \alias{Helske.model}
 \title{\code{Helske.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMtrend}.}
 \usage{
-Helske.model(df)
+
 }
 \arguments{
-\item{df}{speed and location data, data.frame}
+\item{df}{speed and location data derived from \code{RingRoaddata}, data.frame}
 }
 \description{
 \code{Helske.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMtrend}.

@@ -1,9 +1,10 @@
 #' \code{Helske.model} is a wrapper for estimating speed and location with Kalman filtering \code{SSMtrend}.
 #'
-#' @param df speed and location data, data.frame
+#' @param df speed and location data derived from \code{RingRoaddata}, data.frame
 # #' @examples
 # #' Helske.model(df)
-#' @usage Helske.model(df)
+#' @usage
+#'
 #' @export
 Helske.model <- function(df) {
   df     <- df[,1:4]
@@ -48,7 +49,7 @@ Helske.model <- function(df) {
   )
   title(main = expression(dot(x)[t]))
   legend("bottom",
-         legend = c("Target", "Observed", "Filtered state", "Signal","Prediction","95% prediction interval" ),
+         legend = c("Target", "Observed", "Filtered", "Signal","Prediction","95% Prediction interval" ),
          lty = c(1,3,1,1,1,3),
          lwd = c(6,2,2,2,4,2,2),
          col = c("gold", gray(0.5), "blue","black","red","red","red"),
@@ -57,7 +58,7 @@ Helske.model <- function(df) {
   legend("topleft",c(
     expression(""),
     bquote(bar(u) == .(u)),
-    bquote(sigma[epsilon] == .(usd))),
+    bquote(sigma[U] == .(usd))),
     bty = "n"
   )
   browser()
