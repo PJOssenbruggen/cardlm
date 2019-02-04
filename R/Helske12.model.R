@@ -17,7 +17,7 @@ Helske12.model <- function(df) {
   data   <- ts(df, start, end, frequency = 8)
   print(head(data))
   par(mfrow = c(1,1), pty = "s")
-  ### There is mistake in specifying this model. ############################################################
+  ### There is mistake in specifying this model. ###################################################Yes
   if(FALSE) {
     model  <- SSModel(window(data[,1], start = c(0,1), end = c(39,0)) ~
                         SSMtrend(1, Q = NA), H = NA, data = data)
@@ -56,7 +56,7 @@ Helske12.model <- function(df) {
   }
 
 
-  ######################################################################################
+  ### Data Set 1 ###################################################################################
   model  <- SSModel(window(data[,1], start = c(0,1), end = c(25,0)) ~ -1 +
                                 SSMcustom(Z = matrix(c(0,1), 1, 2),
                                           R = matrix(c(1,0),2,1),
@@ -64,26 +64,28 @@ Helske12.model <- function(df) {
                                           Q = matrix(NA),
                                           a1 = matrix(c(0,0),2,1),
                                           P1inf = diag(2),
-                                          P1 = diag(0, 2)),
+                                          P1 = diag(var(data[,1]), 2)),
           H    = matrix(NA),
-          data = data
+          data = data,
+          tol  = .Machine$double.eps^0.5
           )
 
   update_model <- function(pars, model) {
-    model["H"] <- pars[1]
-    model["Q"] <- pars[2]
+    model["Q"] <- exp(pars[1])
+    model["H"] <- exp(pars[2])
     model
   }
-  check_model  <- function(model) (model["H"] > 0 &
-                                     model$Q[1,1,1] > 0)
+  check_model  <- function(model) (model["H"] > 0 & model["Q"] > 0)
   fit         <- fitSSM(model,
-                        inits    = rep(0.1,3),
+                        inits    = c(log(var(data[,1])),log(var(data[,1]))),
                         checkfn  = check_model,
                         updatefn = update_model,
                         method   = "BFGS")
   out         <- KFS(fit$model)
   Q           <- fit$optim.out[[1]][1]
   H           <- fit$optim.out[[1]][2]
+  Q           <- round(Q,1)
+  H           <- round(H,1)
   df.est      <- data.frame(Q,H)
   print(df.est)
   pred  <- predict(fit$model, interval = "prediction",
@@ -95,14 +97,15 @@ Helske12.model <- function(df) {
                  prd.v    = signal(out, states = "all")[[1]],
                  pred     = pred[,1:3]
   )
-
+  par(mfrow = c(1,2), pty = "s")
   ts.plot(window(Out, start = c(0,1), end = c(40,1)),
+          ylim = c(0,150),
           col = c("gold", gray(0.5), "black", "blue", "red","red","red"),
           ylab = "u(t), feet per second",
           lty = c(1,3,1,1,1,2,2),
           lwd = c(6,2,2,2,4,2,2)
   )
-  title(main = expression(dot(x)[t]))
+  title(main = expression(dot(x)[t]), sub = "Undisciplinced lead driver")
   legend("bottom",
          legend = c("Target", "Observed", "One-step Filtered", "Signal","One-step Prediction","95% P.I." ),
          lty = c(1,3,1,1,1,3),
@@ -113,8 +116,72 @@ Helske12.model <- function(df) {
   legend("topleft",c(
     expression(""),
     bquote(bar(u) == .(u)),
-    bquote(sigma[U] == .(usd))),
+    bquote(sigma[U] == .(usd)),
+    bquote(hat(Q) == .(Q)),
+    bquote(hat(H) == .(H))
+    ),
     bty = "n"
+  )
+  browser()
+
+  ### Data Set 2 ###################################################################################
+  model  <- SSModel(window(data[,3], start = c(0,1), end = c(35,0)) ~ -1 +
+                      SSMcustom(Z = matrix(c(0,1), 1, 2),
+                                R = matrix(c(1,0),2,1),
+                                T = matrix(c(1,0,1,1), 2, 2),
+                                Q = matrix(NA),
+                                a1 = matrix(c(0,0),2,1),
+                                P1inf = diag(2),
+                                P1 = diag(var(data[,1]), 2)),
+                    H    = matrix(NA),
+                    data = data,
+                    tol  = .Machine$double.eps^0.5
+  )
+
+  update_model <- function(pars, model) {
+    model["Q"] <- exp(pars[1])
+    model["H"] <- exp(pars[2])
+    model
+  }
+  check_model  <- function(model) (model["H"] > 0 & model["Q"] > 0)
+  fit         <- fitSSM(model,
+                        inits    = c(log(var(data[,3])),log(var(data[,3]))),
+                        checkfn  = check_model,
+                        updatefn = update_model,
+                        method   = "BFGS")
+  out         <- KFS(fit$model)
+  Q           <- fit$optim.out[[1]][1]
+  H           <- fit$optim.out[[1]][2]
+  Q           <- round(Q,1)
+  H           <- round(H,1)
+  df.est      <- data.frame(Q,H)
+  print(df.est)
+  pred  <- predict(fit$model, interval = "prediction",
+                   se.fit = TRUE, level = 0.95, n.ahead = 80)
+
+  Out   <- cbind(gold.v = data[,5],
+                 obs.v    = data[,3],
+                 smooth.v = signal(out, states = "all", filtered = TRUE)[[1]],
+                 prd.v    = signal(out, states = "all")[[1]],
+                 pred     = pred[,1:3]
+  )
+
+  ts.plot(window(Out, start = c(0,1), end = c(45,1)),
+          ylim = c(0,150),
+          col = c("gold", gray(0.5), "black", "blue", "red","red","red"),
+          ylab = "u(t), feet per second",
+          lty = c(1,3,1,1,1,2,2),
+          lwd = c(6,2,2,2,4,2,2)
+  )
+  title(main = expression(dot(x)[t]), sub = "Following safe driver")
+  legend("topleft",c(
+    expression(""),
+    bquote(bar(u) == .(u)),
+    bquote(sigma[U] == .(usd)),
+    bquote(hat(Q) == .(Q)),
+    bquote(hat(H) == .(H))
+  ),
+  bty = "n"
   )
   browser()
 }
